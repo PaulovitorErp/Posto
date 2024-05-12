@@ -1,0 +1,383 @@
+#INCLUDE 'Protheus.ch'
+#include "TOTVS.CH"
+#INCLUDE "topconn.ch"
+
+/*/{Protheus.doc} User Function TRETE050
+JOB responsável por atualizar valores de limites de credito de clientes e grupos de clientes
+
+[LIMITE_OFFLINE_01]
+Main=U_TRETE022
+Environment=JOB_POSTO
+nParms=3
+Parm1=TRETE050
+Parm2=01
+Parm3=0101
+
+@type  Function
+@author danilo
+@since 04/04/2024
+@version version
+/*/
+User Function TRETE050()
+    
+	Local cQry := ""
+	Local lSA1Compart := Empty(xFilial("SA1")) //Verifica se SA1 é compartilhada
+	Local cAliasQry := GetNextAlias()
+	Local lTP_ACTLCS := SuperGetMv("TP_ACTLCS",,.F.) //habilita limite de credito por segmento
+	Local cSGBD	:= AllTrim(Upper(TcGetDb())) // -- Banco de dados atulizado (Para embientes TOP) 			 	
+	Local lTP_ACTLGR := SuperGetMv("TP_ACTLGR",,.T.) //habilita limite de credito por grupo de clientes
+	Local cTpSaq 	:= "RP " //Tipo: Requisição Pós-Paga de Saque (Vale Motorista)
+	Local nCount := 0
+
+	LjGrvLog("TRETE050", "JOB Atualizar Limite Credito Offline...: ", {cEmpAnt, cFilAnt}) 
+	Conout("TRETE050 - JOB Atualizar Limite Credito Offline...: " + cEmpAnt + " - " + cFilAnt)
+	LjGrvLog("TRETE050", "Limite por segmento ativado? ", lTP_ACTLCS) 
+	Conout("TRETE050 - Limite por segmento ativado? " + iif(lTP_ACTLCS,"Sim","Não"))
+
+	if lTP_ACTLCS  //SE ATIVO PARAMETRO POR SEGMENTO - lTP_ACTLCS, A ORIGEM É A PROPRIA UC4
+
+		//################# POR CLIENTE  #################
+		LjGrvLog("TRETE050", "Atualizando limites por cliente...")
+		Conout("TRETE050 - Atualizando limites por cliente...")
+
+		cQry := " SELECT RECUC4, UC4_SALDO, UC4_SALSAQ, SLD_US_VD, SLD_US_SQ "
+		cQry += " FROM ( " //T1
+
+		cQry += " 	SELECT UC4.R_E_C_N_O_ RECUC4, UC4_SALDO, UC4_SALSAQ, "
+		cQry += " 	SUM(CASE WHEN COALESCE(SE1.E1_TIPO,'---') = '"+cTpSaq+"' THEN 0 ELSE COALESCE(SE1.E1_SALDO,0) END ) SLD_US_VD, " //LIMITE DE VENDAS
+		cQry += " 	SUM(CASE WHEN COALESCE(SE1.E1_TIPO,'---') = '"+cTpSaq+"' THEN COALESCE(SE1.E1_SALDO,0) ELSE 0 END ) SLD_US_SQ " //LIMITE DE SAQUE
+
+		cQry += " 	FROM "+RetSqlName("UC4")+" UC4 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+""
+		cQry += " 	INNER JOIN "+RetSqlName("UC5")+" UC5 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+		cQry += " 		UC5.UC5_FILIAL = '"+xFilial("UC5")+"' AND UC5.D_E_L_E_T_ = ' ' AND UC5_COD = UC4_SEG "
+		cQry += " 	) "
+		cQry += " 	LEFT JOIN "+RetSqlName("SE1")+" SE1 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+		cQry += " 		SE1.E1_CLIENTE = UC4_CLIENT "
+		cQry += " 		AND SE1.E1_LOJA = UC4_LOJA "
+		cQry += " 		AND SE1.E1_FILORIG = UC5_FILERP "
+		cQry += " 		AND SE1.E1_SALDO > 0 "
+		cQry += " 		AND SE1.E1_TIPO NOT IN " + FormatIn(MVABATIM+"|"+MV_CRNEG +"|"+MVPROVIS+"|"+MVRECANT+"|"+MV_CPNEG+"|"+ MVTAXA+"|"+MVTXA+"|"+MVINSS+"|"+"SES","|")  
+		cQry += " 		AND SE1.D_E_L_E_T_ = ' ' "
+		cQry += " 	) "
+		cQry += " 	WHERE UC4_SEG <> ' ' "
+		cQry += " 	AND UC4_CLIENT <> ' ' "
+		cQry += " 	AND UC4.UC4_FILIAL = '"+xFilial("UC4")+"' "
+		cQry += " 	AND UC4.D_E_L_E_T_ = ' ' "
+		cQry += " 	GROUP BY UC4.R_E_C_N_O_, UC4_SALDO, UC4_SALSAQ "
+
+		cQry += " ) T1 "
+		cQry += " WHERE Round(SLD_US_VD,2) <> Round(UC4_SALDO,2) OR Round(SLD_US_SQ,2) <> Round(UC4_SALSAQ,2) "
+
+		cQry := ChangeQuery(cQry)
+
+		If Select(cAliasQry) > 0
+			(cAliasQry)->(DbCloseArea())
+		Endif
+	
+		MPSysOpenQuery(cQry,cAliasQry)
+
+		While (cAliasQry)->(!EOF())
+
+			UC4->(DBGoTo( (cAliasQry)->RECUC4 ))
+			//Atualizo somente o saldo
+			If RecLock('UC4',.F.)
+				UC4->UC4_SALDO := (cAliasQry)->SLD_US_VD
+				UC4->UC4_SALSAQ := (cAliasQry)->SLD_US_SQ
+				UC4->UC4_DHUPD := DTOC(Date()) + ' ' + Time()
+				UC4->(MsUnlock())
+			EndIf
+
+			nCount++
+
+			(cAliasQry)->(dbSkip())
+		EndDo
+
+		LjGrvLog("TRETE050", "Foram atualizados "+cValToChar(nCount)+" limites de cliente") 
+		Conout("TRETE050 - Foram atualizados "+cValToChar(nCount)+" limites de cliente")
+
+		If Select(cAliasQry) > 0
+			(cAliasQry)->(DbCloseArea())
+		Endif
+
+		if lTP_ACTLGR
+			
+			nCount := 0
+			//################# POR GRUPO DE CLIENTE  #################
+			LjGrvLog("TRETE050", "Atualizando limites por Grupo de cliente...") 
+			Conout("TRETE050 - Atualizando limites por Grupo de cliente...")
+			
+			cQry := " SELECT RECUC4, UC4_SALDO, UC4_SALSAQ, SLD_US_VD, SLD_US_SQ "
+			cQry += " FROM ( " //T1
+			
+			cQry += " 	SELECT UC4.R_E_C_N_O_ RECUC4, UC4_SALDO, UC4_SALSAQ, "
+			cQry += " 	SUM(CASE WHEN COALESCE(SE1.E1_TIPO,'---') = '"+cTpSaq+"' THEN 0 ELSE COALESCE(SE1.E1_SALDO,0) END ) SLD_US_VD, " //LIMITE DE VENDAS
+			cQry += " 	SUM(CASE WHEN COALESCE(SE1.E1_TIPO,'---') = '"+cTpSaq+"' THEN COALESCE(SE1.E1_SALDO,0) ELSE 0 END ) SLD_US_SQ " //LIMITE DE SAQUE
+			cQry += " 	FROM "+RetSqlName("UC4")+" UC4 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+""
+			cQry += " 	INNER JOIN "+RetSqlName("SA1")+" SA1 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+			cQry += " 		A1_FILIAL = UC4_FILIAL " //a tabela UC4 deve seguir o mesmo compartilhamento da SA1
+			cQry += " 		AND A1_GRPVEN = UC4_GRUPO "
+			cQry += " 	) "
+			cQry += " 	INNER JOIN "+RetSqlName("UC5")+" UC5 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+			cQry += " 		UC5.UC5_FILIAL = '"+xFilial("UC5")+"' AND UC5.D_E_L_E_T_ = ' ' AND UC5_COD = UC4_SEG "
+			cQry += " 	) "
+			cQry += " 	LEFT JOIN "+RetSqlName("SE1")+" SE1 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+			cQry += " 		SE1.E1_CLIENTE = SA1.A1_COD "
+			cQry += " 		AND SE1.E1_LOJA = SA1.A1_LOJA "
+			cQry += " 		AND SE1.E1_FILORIG = UC5_FILERP "
+			cQry += " 		AND SE1.E1_SALDO > 0 "
+			cQry += " 		AND SE1.E1_TIPO NOT IN " + FormatIn(MVABATIM+"|"+MV_CRNEG +"|"+MVPROVIS+"|"+MVRECANT+"|"+MV_CPNEG+"|"+ MVTAXA+"|"+MVTXA+"|"+MVINSS+"|"+"SES","|")  
+			cQry += " 		AND SE1.D_E_L_E_T_ = ' ' "
+			cQry += " 	) "
+			cQry += " 	WHERE UC4_SEG <> ' ' "
+			cQry += " 	AND UC4_GRUPO <> ' ' "
+			cQry += " 	AND UC4.UC4_FILIAL = '"+xFilial("UC4")+"' "
+			cQry += " 	AND UC4.D_E_L_E_T_ = ' ' "
+			cQry += " 	GROUP BY UC4.R_E_C_N_O_, UC4_SALDO, UC4_SALSAQ "
+
+			cQry += " ) T1 "
+			cQry += " WHERE Round(SLD_US_VD,2) <> Round(UC4_SALDO,2) OR Round(SLD_US_SQ,2) <> Round(UC4_SALSAQ,2) "
+				
+			cQry := ChangeQuery(cQry)
+
+			If Select(cAliasQry) > 0
+				(cAliasQry)->(DbCloseArea())
+			Endif
+		
+			MPSysOpenQuery(cQry,cAliasQry)
+
+			While (cAliasQry)->(!EOF())
+
+				UC4->(DBGoTo( (cAliasQry)->RECUC4 ))
+				//Atualizo somente o saldo
+				If RecLock('UC4',.F.)
+					UC4->UC4_SALDO := (cAliasQry)->SLD_US_VD
+					UC4->UC4_SALSAQ := (cAliasQry)->SLD_US_SQ
+					UC4->UC4_DHUPD := DTOC(Date()) + ' ' + Time()
+					UC4->(MsUnlock())
+				EndIf
+				
+				nCount++
+
+				(cAliasQry)->(dbSkip())
+			EndDo
+
+			LjGrvLog("TRETE050", "Foram atualizados "+cValToChar(nCount)+" limites de grupo de cliente") 
+			Conout("TRETE050 - Foram atualizados "+cValToChar(nCount)+" limites de grupo de cliente")
+
+			If Select(cAliasQry) > 0
+				(cAliasQry)->(DbCloseArea())
+			Endif
+
+		endif
+
+	else //SE NAO USA POR SEGMENTO, A ORIGEM É A SA1 e ACY
+
+		//################# POR CLIENTE  #################
+		LjGrvLog("TRETE050", "Atualizando limites por cliente...") 
+		Conout("TRETE050 - Atualizando limites por cliente...")
+
+		cQry := " SELECT A1_FILIAL, A1_COD, A1_LOJA, A1_XLC, A1_XBLQLC, A1_XLIMSQ, A1_XBLQSQ, COALESCE(UC4.R_E_C_N_O_,0) RECUC4, SLD_US_VD, SLD_US_SQ"
+		cQry += " FROM ( " //T1
+
+		cQry += " 	SELECT A1_FILIAL, A1_COD, A1_LOJA, A1_XLC, A1_XBLQLC, A1_XLIMSQ, A1_XBLQSQ, "
+		cQry += " 	SUM(CASE WHEN COALESCE(SE1.E1_TIPO,'---') = '"+cTpSaq+"' THEN 0 ELSE COALESCE(SE1.E1_SALDO,0) END ) SLD_US_VD, " //LIMITE DE VENDAS
+		cQry += " 	SUM(CASE WHEN COALESCE(SE1.E1_TIPO,'---') = '"+cTpSaq+"' THEN COALESCE(SE1.E1_SALDO,0) ELSE 0 END ) SLD_US_SQ " //LIMITE DE SAQUE
+		cQry += " 	FROM "+RetSqlName("SA1")+" SA1 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" "
+		cQry += " 	LEFT JOIN "+RetSqlName("SE1")+" SE1 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+		cQry += " 		SE1.E1_CLIENTE = SA1.A1_COD "
+		cQry += " 		AND SE1.E1_LOJA = SA1.A1_LOJA "
+		If !lSA1Compart //se SA1 for exclusiva
+			cQry += 	" 		AND SUBSTRING(SE1.E1_FILIAL,1,"+cValToChar(Len(Alltrim(xFilial("SA1"))))+") = '"+xFilial("SA1")+"' "
+		EndIf
+		cQry += " 		AND SE1.E1_SALDO > 0 "
+		cQry += " 		AND SE1.E1_TIPO NOT IN " + FormatIn(MVABATIM+"|"+MV_CRNEG +"|"+MVPROVIS+"|"+MVRECANT+"|"+MV_CPNEG+"|"+ MVTAXA+"|"+MVTXA+"|"+MVINSS+"|"+"SES","|")  
+		cQry += " 		AND SE1.D_E_L_E_T_ = ' ' "
+		cQry += " 	) "
+		cQry += " 	WHERE SA1.D_E_L_E_T_ = ' ' "
+		cQry += " 	AND SA1.A1_FILIAL = '"+xFilial("SA1")+"' "
+		cQry += " 	GROUP BY A1_FILIAL, A1_COD, A1_LOJA, A1_XLC, A1_XBLQLC, A1_XLIMSQ, A1_XBLQSQ  "
+
+		cQry += " ) T1 "
+		
+		cQry += " LEFT JOIN "+RetSqlName("UC4")+" UC4 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+		cQry += " 	UC4_CLIENT = A1_COD "
+		cQry += " 	AND UC4_LOJA = A1_LOJA "
+		cQry += " 	AND UC4_SEG = ' ' "
+		cQry += " 	AND UC4_FILIAL = A1_FILIAL " //a tabela UC4 deve seguir o mesmo compartilhamento da SA1
+		cQry += " ) "
+
+		cQry += " WHERE "
+		cQry += " (UC4_LIMVEN IS NULL OR A1_XLC <> UC4_LIMVEN) "
+		cQry += " OR  "
+		cQry += " (UC4_BLQVEN IS NULL OR A1_XBLQLC <> UC4_BLQVEN) "
+		cQry += " OR  "
+		cQry += " (UC4_SALDO IS NULL OR Round(SLD_US_VD,2) <> Round(UC4_SALDO,2) ) "
+		cQry += " OR  "
+		cQry += " (UC4_LIMSAQ IS NULL OR A1_XLIMSQ <> UC4_LIMSAQ) "
+		cQry += " OR  "
+		cQry += " (UC4_BLQSAQ IS NULL OR A1_XBLQSQ <> UC4_BLQSAQ) "
+		cQry += " OR  "
+		cQry += " (UC4_SALSAQ IS NULL OR Round(SLD_US_SQ,2) <> Round(UC4_SALSAQ,2) ) "
+
+		cQry := ChangeQuery(cQry)
+
+		If Select(cAliasQry) > 0
+			(cAliasQry)->(DbCloseArea())
+		Endif
+	
+		MPSysOpenQuery(cQry,cAliasQry)
+
+		While (cAliasQry)->(!EOF())
+
+			if (cAliasQry)->RECUC4 > 0
+				UC4->(DBGoTo( (cAliasQry)->RECUC4 ))
+
+				//Atualizo somente o saldo
+				If RecLock('UC4',.F.)
+					UC4->UC4_LIMVEN := (cAliasQry)->A1_XLC
+					UC4->UC4_BLQVEN := (cAliasQry)->A1_XBLQLC
+					UC4->UC4_SALDO := (cAliasQry)->SLD_US_VD
+					UC4->UC4_LIMSAQ := (cAliasQry)->A1_XLIMSQ
+					UC4->UC4_BLQSAQ := (cAliasQry)->A1_XBLQSQ
+					UC4->UC4_SALSAQ := (cAliasQry)->SLD_US_SQ
+					UC4->UC4_DHUPD := DTOC(Date()) + ' ' + Time()
+					UC4->(MsUnlock())
+				EndIf
+			else
+				RecLock('UC4',.T.)
+					UC4->UC4_FILIAL := (cAliasQry)->A1_FILIAL
+					UC4->UC4_CLIENT := (cAliasQry)->A1_COD
+					UC4->UC4_LOJA := (cAliasQry)->A1_LOJA
+					UC4->UC4_LIMVEN := (cAliasQry)->A1_XLC
+					UC4->UC4_BLQVEN := (cAliasQry)->A1_XBLQLC
+					UC4->UC4_SALDO  := (cAliasQry)->SLD_US_VD
+					UC4->UC4_LIMSAQ := (cAliasQry)->A1_XLIMSQ
+					UC4->UC4_BLQSAQ := (cAliasQry)->A1_XBLQSQ
+					UC4->UC4_SALSAQ := (cAliasQry)->SLD_US_SQ
+					UC4->UC4_DHUPD := DTOC(Date()) + ' ' + Time()
+				UC4->(MsUnlock())
+			endif
+
+			nCount++
+
+			(cAliasQry)->(dbSkip())
+		EndDo
+		
+		LjGrvLog("TRETE050", "Foram atualizados "+cValToChar(nCount)+" limites de cliente") 
+		Conout("TRETE050 - Foram atualizados "+cValToChar(nCount)+" limites de cliente")
+
+		If Select(cAliasQry) > 0
+			(cAliasQry)->(DbCloseArea())
+		Endif
+
+		if lTP_ACTLGR
+			
+			nCount := 0
+
+			//################# POR GRUPO DE CLIENTE  #################
+			LjGrvLog("TRETE050", "Atualizando limites por Grupo de cliente...") 
+			Conout("TRETE050 - Atualizando limites por Grupo de cliente...")
+
+			cQry := " SELECT A1_FILIAL, ACY_GRPVEN, ACY_XLC, ACY_XBLPRZ, ACY_XLIMSQ, ACY_XBLRSA, COALESCE(UC4.R_E_C_N_O_,0) RECUC4, SLD_US_VD, SLD_US_SQ"
+			cQry += " FROM ( " //T1
+
+			cQry += " 	SELECT A1_FILIAL, ACY_GRPVEN, ACY_XLC, ACY_XBLPRZ, ACY_XLIMSQ, ACY_XBLRSA, "
+			cQry += " 	SUM(CASE WHEN COALESCE(SE1.E1_TIPO,'---') = '"+cTpSaq+"' THEN 0 ELSE COALESCE(SE1.E1_SALDO,0) END ) SLD_US_VD, " //LIMITE DE VENDAS
+			cQry += " 	SUM(CASE WHEN COALESCE(SE1.E1_TIPO,'---') = '"+cTpSaq+"' THEN COALESCE(SE1.E1_SALDO,0) ELSE 0 END ) SLD_US_SQ " //LIMITE DE SAQUE
+			cQry += " 	FROM "+RetSqlName("ACY")+" ACY "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+""
+			cQry += " 	INNER JOIN "+RetSqlName("SA1")+" SA1 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+			cQry += " 		A1_GRPVEN = ACY_GRPVEN "
+			cQry += "		AND SA1.A1_FILIAL = '"+xFilial("SA1")+"' "
+			cQry += " 	) "
+			cQry += " 	LEFT JOIN "+RetSqlName("SE1")+" SE1 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+			cQry += " 		SE1.E1_CLIENTE = SA1.A1_COD "
+			cQry += " 		AND SE1.E1_LOJA = SA1.A1_LOJA "
+			If !lSA1Compart //se SA1 for exclusiva
+				cQry += 	" 		AND SUBSTRING(SE1.E1_FILIAL,1,"+cValToChar(Len(Alltrim(xFilial("SA1"))))+") = '"+xFilial("SA1")+"' "
+			EndIf
+			cQry += " 		AND SE1.E1_SALDO > 0 "
+			cQry += " 		AND SE1.E1_TIPO NOT IN " + FormatIn(MVABATIM+"|"+MV_CRNEG +"|"+MVPROVIS+"|"+MVRECANT+"|"+MV_CPNEG+"|"+ MVTAXA+"|"+MVTXA+"|"+MVINSS+"|"+"SES","|")  
+			cQry += " 		AND SE1.D_E_L_E_T_ = ' ' "
+			cQry += " 	) "
+			cQry += " 	WHERE ACY.D_E_L_E_T_ = ' '  "
+			cQry += " 	GROUP BY A1_FILIAL, ACY_GRPVEN, ACY_XLC, ACY_XBLPRZ, ACY_XLIMSQ, ACY_XBLRSA "
+
+			cQry += " ) T1 "
+			
+			cQry += " LEFT JOIN "+RetSqlName("UC4")+" UC4 "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" ON ( "
+			cQry += " 	UC4_GRUPO = ACY_GRPVEN "
+			cQry += " 	AND UC4_SEG = ' ' "
+			cQry += " 	AND UC4_FILIAL = A1_FILIAL " //a tabela UC4 deve seguir o mesmo compartilhamento da SA1
+			cQry += " ) "
+
+			cQry += " WHERE "
+			cQry += " (UC4_LIMVEN IS NULL OR ACY_XLC <> UC4_LIMVEN) "
+			cQry += " OR  "
+			cQry += " (UC4_BLQVEN IS NULL OR ACY_XBLPRZ <> UC4_BLQVEN) "
+			cQry += " OR  "
+			cQry += " (UC4_SALDO IS NULL OR Round(SLD_US_VD,2) <> Round(UC4_SALDO,2) ) "
+			cQry += " OR  "
+			cQry += " (UC4_LIMSAQ IS NULL OR ACY_XLIMSQ <> UC4_LIMSAQ) "
+			cQry += " OR  "
+			cQry += " (UC4_BLQSAQ IS NULL OR ACY_XBLRSA <> UC4_BLQSAQ) "
+			cQry += " OR  "
+			cQry += " (UC4_SALSAQ IS NULL OR Round(SLD_US_SQ,2) <> Round(UC4_SALSAQ,2) ) "
+
+			cQry := ChangeQuery(cQry)
+
+			If Select(cAliasQry) > 0
+				(cAliasQry)->(DbCloseArea())
+			Endif
+		
+			MPSysOpenQuery(cQry,cAliasQry)
+
+			While (cAliasQry)->(!EOF())
+
+				if (cAliasQry)->RECUC4 > 0
+					UC4->(DBGoTo( (cAliasQry)->RECUC4 ))
+
+					//Atualizo somente o saldo
+					If RecLock('UC4',.F.)
+						UC4->UC4_LIMVEN := (cAliasQry)->ACY_XLC
+						UC4->UC4_BLQVEN := (cAliasQry)->ACY_XBLPRZ
+						UC4->UC4_SALDO  := (cAliasQry)->SLD_US_VD
+						UC4->UC4_LIMSAQ := (cAliasQry)->ACY_XLIMSQ
+						UC4->UC4_BLQSAQ := (cAliasQry)->ACY_XBLRSA
+						UC4->UC4_SALSAQ := (cAliasQry)->SLD_US_SQ
+						UC4->UC4_DHUPD := DTOC(Date()) + ' ' + Time()
+						UC4->(MsUnlock())
+					EndIf
+				else
+					RecLock('UC4',.T.)
+						UC4->UC4_FILIAL := (cAliasQry)->A1_FILIAL
+						UC4->UC4_GRUPO := (cAliasQry)->ACY_GRPVEN
+						UC4->UC4_LIMVEN := (cAliasQry)->ACY_XLC
+						UC4->UC4_BLQVEN := (cAliasQry)->ACY_XBLPRZ
+						UC4->UC4_SALDO  := (cAliasQry)->SLD_US_VD
+						UC4->UC4_LIMSAQ := (cAliasQry)->ACY_XLIMSQ
+						UC4->UC4_BLQSAQ := (cAliasQry)->ACY_XBLRSA
+						UC4->UC4_SALSAQ := (cAliasQry)->SLD_US_SQ
+						UC4->UC4_DHUPD := DTOC(Date()) + ' ' + Time()
+					UC4->(MsUnlock())
+				endif
+
+				nCount++
+
+				(cAliasQry)->(dbSkip())
+			EndDo
+
+			LjGrvLog("TRETE050", "Foram atualizados "+cValToChar(nCount)+" limites de grupo de cliente") 
+			Conout("TRETE050 - Foram atualizados "+cValToChar(nCount)+" limites de grupo de cliente")
+
+			If Select(cAliasQry) > 0
+				(cAliasQry)->(DbCloseArea())
+			Endif
+
+		endif
+
+	endif
+
+	LjGrvLog("TRETE050", "Fim do JOB") 
+	Conout("TRETE050 - Fim do JOB")
+
+Return 
