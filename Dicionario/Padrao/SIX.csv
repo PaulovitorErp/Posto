@@ -1,0 +1,34 @@
+INDICE;ORDEM;CHAVE;DESCRICAO;DESCSPA;DESCENG;PROPRI;F3;NICKNAME;SHOWPESQ
+MHX;1;MHX_FILIAL+MHX_CODCON;Código da Concentradora;Código;Code;S;;;S
+MHY;1;MHY_FILIAL+MHY_CODBOM+MHY_CODCON;Código da Bomba + Tanque de Abastecimento;Código de bomba + Tanque de Suministro;Pump Code + Supply Tank;S;;;S
+MHZ;1;MHZ_FILIAL+MHZ_CODTAN;Código do Tanque de Abastecimento;Código del Tanque de Suministro;Supply Tank Code;S;;;S
+MHZ;2;MHZ_FILIAL+MHZ_CODTAN+MHZ_TPCOMB;Código do Tanque + Tipo de Combustivel;Código del Tanque + Tipo de Combustible;Tank Code + Fuel Type;S;;;S
+MHZ;3;MHZ_FILIAL+MHZ_CODPRO+MHZ_LOCAL;Código do Produto + Local de Armazenamento;Código de Producto + Ubicación de Almacenamiento;Product Code + Storage Location;S;;;S
+MIA;1;MIA_FILIAL+MIA_CODIGO+MIA_TIPO;Código + Tipo do Item;Código + Tipo de Artículo;Code + Article Type;S;;;S
+MIB;1;MIB_FILIAL+MIB_CODMAN+dtos(MIB_DATA)+MIB_NROLAC+MIB_CORLAC;Cód. Manutenção + Data + Número do Lacre + Cor;Código Mantenimiento + Fecha + Número de Sello + Color;code Maintenance + Date + Seal Number + Color;S;;;S
+MIB;2;MIB_FILIAL+MIB_NROLAC;Número do Lacre;Número de Sello;Seal number;S;;;S
+MIB;3;MIB_FILIAL+MIB_CODBOM+MIB_NROLAC;Código da Bomba + Número do Lacre;Código de Bomba + Número de Sello;Pump Code + Seal Number;S;;;S
+MIC;1;MIC_FILIAL+MIC_CODBIC+MIC_CODBOM;Código do Bico de Abastecimento + Código da Bomba;Código de Boquilla de Suministro + Código de Bomba;Supply Nozzle Code + Pump Code;S;;;S
+MIC;2;MIC_FILIAL+MIC_CODBOM+MIC_CODBIC;Código da Bomba + Código do Bico de Abastecimento;Código de Bomba + Código de Boquilla de Suministro;Pump Code + Supply Nozzle Code;S;;;S
+MIC;3;MIC_FILIAL+MIC_CODBIC+MIC_CODTAN;Código do Bico de Abastecimento + Tanque;Código de Boquilla de Suministro + Tanque;Supply Nozzle Code + Tank;S;;;S
+MIC;4;MIC_FILIAL+MIC_NLOGIC;Número Lógico do Bico;Número lógico de Boquilla;Nozzle Logical Number;S;;;S
+MIC;5;MIC_FILIAL+MIC_XCONCE+MIC_LADO+MIC_NLOGIC;Concentrador+Lado Bomba+Nr Logico Bc;Concentrador+Bomba Boquil+Número Lógic;Concentrador+Bomba Boquil+Número Lógic;U;;MIC_001;S
+MID;1;MID_FILIAL+MID_CODABA;Código do Abastecimento da Concentradora;Código de Suministro del Concentrador;Concentrator Supply Code;S;;;S
+MID;2;MID_FILIAL+MID_SITUA;Situação da Integração;Estado de Integración;Integration Status;S;;;N
+MID;3;MID_FILIAL+MID_DATACO;Data de Registro do Abastecimento na Concentradora;Fecha de Registro de Suministro en la Concentradora;Date of Registration of Supply at the Concentrator;S;;;S
+MID;4;MID_FILIAL+MID_XCONCE+MID_LADBOM+MID_NLOGIC+DTOS(MID_DATACO)+MID_HORACO+STR(MID_LITABA);Concentrad.+Lado Bomba+Num. Log Bic+Dt. Abast.+Hr. Abast.+Litros Abast;Concentrad.+Lado Bomba+Número Lógic+Fecha Sumini+Tiempo Sumin+litros l;Concentrad.+Lado Bomba+Número Lógic+Fecha Sumini+Tiempo Sumin+litros l;U;;MID_001;S
+MID;5;MID_FILIAL+MID_CODBIC+STR(MID_ENCFIN)+MID_CODABA;Cod. Bico Ab+Encer Final+Cod. Abastec;Cód Punta Su+Clausura Fin+Código Sumin;Supply Tip C+Clausura Fin+Código Sumin;U;;MID_002;S
+MID;6;MID_FILIAL+MID_XCONCE+MID_LEITUR;Concentrad.+Cód Leitura;Concentrad.+Leer Código;Concentrad.+Leer Código;U;;MID_003;S
+MID;7;MID_FILIAL+DTOS(MID_DATACO)+MID_XPROD+MID_CODBIC+MID_CODTAN;Dt. Abast+Produto+Cod. Bico Ab+Cod.Tanque;Dt. Abast+Produto+Cod. Bico Ab+Cod.Tanque;Dt. Abast+Produto+Cod. Bico Ab+Cod.Tanque;U;;MID_004;S
+MIE;1;MIE_FILIAL+MIE_CODPRO+DTOS(MIE_DATA)+MIE_CODTAN+MIE_CODBIC;Código do Produto + Data de Fechamento + Tanque + Bico de Abasteciment;Código de Producto + Fecha de Cierre + Tanque + Boquilla de Llenado;Product Code + Closing Date + Tank + Filling Nozzle;S;;;S
+MIE;2;MIE_FILIAL+DTOS(MIE_DATA)+MIE_CODTAN+MIE_CODBIC;Data do Fechamento + Tanque + Bico de Abastecimento;Fecha de Cierre + Tanque + Boquilla de Llenado;Closing Date + Tank + Filling Nozzle;S;;;S
+MIE;3;MIE_FILIAL+MIE_CODPRO+MIE_NRLIVR+DTOS(MIE_DATA);Código do Produto + Número do Livro + Data de Fechamento;Código de Producto + Número de Libro + Fecha de Cierre;Product Code + Book Number + Closing Date;S;;;S
+MIF;1;MIF_FILIAL+MIF_CODMAN;Código da Manutenção;Código de Mantenimiento;Maintenance Code;S;;;S
+SA3;9;A3_FILIAL+A3_RFID;Código do RFID;Codigo do RFID;RFID code;S;;SA3RFID;S
+TQK;1;TQK_FILIAL+TQK_POSTO+TQK_LOJA+TQK_TANQUE+DTOS(TQK_DTMEDI)+TQK_HRMEDI;Posto Int. + Loja + Tanque + Data Medicao + Hora Medicao;Gasol. Int. + Tienda + Tanque + Fecha Medic + Hora Medic.;Int. Station + Store + Tank + Gaug. Date + Gaug. Time;S;;;S
+TQK;2;TQK_FILIAL+TQK_CODFUN;Funcionario;Empleado;Employee;S;;;S
+SLI;3;LI_FILIAL+LI_ALIAS+LI_MSG;Alias+Mensagem;Alias+Mensaje;Alias+Mensaje;U;;XREPLICA;S
+SE5;O;E5_FILIAL+DTOS(E5_DATA)+E5_BANCO+E5_NUMMOV+E5_XPDV+E5_XESTAC;Data+Banco+NumMov+Pdv+Estacao;Data+Banco+NumMov+Pdv+Estacao;Data+Banco+NumMov+Pdv+Estacao;U;;PDV01;S
+SL2;D;L2_FILIAL+L2_PRODUTO+L2_MICCOD;PRODUTO+BOMBA;PRODUTO+BOMBA;PRODUTO+BOMBA;S;;SL2BICPROD;
+SL2;E;L2_FILIAL+L2_MIDCOD;Código de Abastecimento na MID;Código de Suministro en MID;Supply Code at MID;S;;SL2MIDCOD;N
+SL1;O;L1_FILIAL+L1_PLACA+L1_ZERAODO+STR(L1_ODOMETR);Placa do Veículo + Reiniciando Hodômetro + Número do Hodômetro;Matrícula del vehículo + Cuentakilómetros de Reinicio + Núm. de Cuenta;Vehicle License Plate + Resetting Odometer + Odometer Number;S;;PESQKM;

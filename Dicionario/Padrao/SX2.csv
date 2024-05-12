@@ -1,0 +1,11 @@
+X2_CHAVE;X2_PATH;X2_ARQUIVO;X2_NOME;X2_NOMESPA;X2_NOMEENG;X2_ROTINA;X2_MODO;X2_MODOUN;X2_MODOEMP;X2_DELET;X2_TTS;X2_UNICO;X2_PYME;X2_MODULO;X2_DISPLAY
+MHX;\DATA\;MHX010;Concentradora do Posto Combust;Concentrador de Gasolinera;Gas Station Concentrator;;E;E;E;0;;MHX_FILIAL+MHX_CODCON;S;12;
+MHY;\DATA\;MHY010;Bombas de Combustivel;Bombas de Combustible;Fuel Pumps;;E;E;E;0;;MHY_FILIAL+MHY_CODBOM+MHY_CODCON;N;12;
+MHZ;\DATA\;MHZ010;Tanques de Combustivel;Tanques de Combustible;Fuel Tank;;E;E;E;0;;MHZ_FILIAL+MHZ_CODTAN+MHZ_CODPRO+MHZ_LOCAL;N;12;
+MIA;\DATA\;MIA010;Tabela Generica Posto Combusti;Estación de Combustible mesa;Generic Table Fuel Station;;E;E;E;0;;MIA_FILIAL+MIA_CODIGO+MIA_TIPO;N;12;
+MIB;\DATA\;MIB010;Registro Manutenção no Posto;Registro Mantenimiento Estació;Register Maintenance Station;;E;E;E;0;N;MIB_FILIAL+MIB_CODMAN+dtos(MIB_DATA)+MIB_NROLAC+MIB_CORLAC+MIB_CODBOM+MIB_CODCON+MIB_CODBIC;S;12;
+MIC;\DATA\;MIC010;Bicos da Bomba Combustivel;Boquillas de Bmba de Combustiv;Fuel Pump Nozzles;;E;E;E;0;;MIC_FILIAL+MIC_CODBIC+MIC_CODBOM+MIC_STATUS+MIC_XDTDES;S;12;
+MID;\DATA\;MID010;Abastecimentos do Concentrador;Suministros Cncentrador;Concentrator Supplies;;E;E;E;0;;MID_FILIAL+MID_CODABA;S;12;
+MIE;\DATA\;MIE010;Livro de Movimento Combustivel;Libro de movimiento de combust;Fuel Movement Book;;E;E;E;0;N;MIE_FILIAL+MIE_CODPRO+DTOS(MIE_DATA)+MIE_CODTAN+MIE_CODBIC;S;12;
+MIF;\DATA\;MIF010;Itens Manutenção da tabela MIB;Elementos mantenimiento tab MI;MIB Table Maintenance Items;;E;E;E;0;;MIF_FILIAL+MIF_CODMAN;N;12;
+TQK;;TQK010;MEDICAO DO TANQUE DO POSTO INT;MEDICION  DEL TANQUE  PUESTO;TANK MEASUM.OF INT G.STATION;;E;E;E;0;;TQK_FILIAL+TQK_POSTO+TQK_LOJA+TQK_TANQUE+DTOS(TQK_DTMEDI)+TQK_HRMEDI;N;19;

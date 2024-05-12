@@ -1,0 +1,3 @@
+X6_FIL;X6_VAR;X6_TIPO;X6_DESCRIC;X6_DSCSPA;X6_DSCENG;X6_DESC1;X6_DSCSPA1;X6_DSCENG1;X6_DESC2;X6_DSCSPA2;X6_DSCENG2;X6_CONTEUD;X6_CONTSPA;X6_CONTENG;X6_PROPRI;X6_VALID;X6_INIT;X6_DEFPOR;X6_DEFSPA;X6_DEFENG
+;MV_LJFISMS;C;Mensagem padrao para impressao no rodape do cupom;Mensaje estandar para impresion en pie de pagina;Standard message to be printed on the receipt;fiscal.;del comprobante fiscal.;footnote.;;;;&U_TPDVE005();&U_TPDVE005();&U_TPDVE005();S;;;Obrigado! Volte Sempre!;¡Gracias y vuelva siempre!;
+;MV_LJFCVDA;N;Finaliza venda automaticamente caso saldo esteja z;Finaliza venta automáticamente si saldo está en;Finish sale automatically if the balance is;erado;cero;zero;;;;2;1;1;S;;;1;1;1

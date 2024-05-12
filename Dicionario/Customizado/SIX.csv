@@ -1,0 +1,100 @@
+INDICE;ORDEM;CHAVE;DESCRICAO;DESCSPA;DESCENG;PROPRI;F3;NICKNAME;SHOWPESQ
+SZO;1;ZO_FILIAL+ZO_CODCOMB;Codigo;Codigo;Codigo;U;;;S
+SZO;2;ZO_FILIAL+ZO_DESCRI+ZO_CODCOMB;Desc. Comb.;Desc. Comb.;Desc. Comb.;U;;;S
+U00;1;U00_FILIAL+U00_NUMSEQ;Intervencao;Intervencao;Intervencao;U;;;S
+U00;2;U00_FILIAL+DTOS(U00_DTINT);Dt intervenc;Dt intervenc;Dt intervenc;U;;;S
+U00;3;U00_FILIAL+DTOS(U00_DTINT)+U00_BOMBA;Dt intervenc+Bomba;Dt intervenc+Bomba;Dt intervenc+Bomba;U;;;S
+U01;1;U01_FILIAL+U01_NUMSEQ+U01_LACRE;Codigo+Lacre;Codigo+Lacre;Codigo+Lacre;U;;;S
+U02;1;U02_FILIAL+U02_NUMSEQ+U02_SEQBIC;Codigo+Sequencia;Codigo+Sequencia;Codigo+Sequencia;U;;;S
+U02;2;U02_FILIAL+U02_NUMSEQ+U02_BICO;Codigo+Bico;Codigo+Bico;Codigo+Bico;U;;;S
+U03;1;U03_FILIAL+U03_GRUPO+U03_USER;Grp. Usuario+Usuario;Grp. Usuario+Usuario;Grp. Usuario+Usuario;U;;;S
+U04;1;U04_FILIAL+U04_GRUPO+U04_USER+U04_ITEM;Grp. Usuario+Usuario+Item;Grp. Usuario+Usuario+Item;Grp. Usuario+Usuario+Item;U;;;N
+U0A;1;U0A_FILIAL+U0A_FORPAG+U0A_CONDPG+U0A_ADMFIN;Form+Cond+Adm Fin;Form+Cond+Adm Fin;Form+Cond+Adm Fin;U;;;S
+U0B;1;U0B_FILIAL+U0B_PRODUT;Prod;Prod;Prod;U;;;S
+U0C;1;U0C_FILIAL+U0C_PRODUT+U0C_FORPAG+U0C_CONDPG+U0C_ADMFIN;Prod+Form+Cond+Adm Fin;Prod+Form+Cond+Adm Fin;Prod+Form+Cond+Adm Fin;U;;;S
+U0D;1;U0D_FILIAL+U0D_GRUPO+U0D_USER;Grp. Usuario+Usuario;Grp. Usuario+Usuario;Grp. Usuario+Usuario;U;;;S
+U0D;2;U0D_FILIAL+U0D_GRUPO;Grp. Usuario;Grp. Usuario;Grp. Usuario;U;;;N
+U0D;3;U0D_FILIAL+U0D_USER;Usuario;Usuario;Usuario;U;;;N
+U0E;1;U0E_FILIAL+U0E_CHAVE+DTOS(U0E_DATA)+U0E_HORA;Chave Rot.+Data+Hora;Chave Rot.+Data+Hora;Chave Rot.+Data+Hora;U;;;S
+U0E;2;U0E_FILIAL+U0E_CHAVE+U0E_DOC+DTOS(U0E_DATA)+U0E_HORA;Chave Rot.+Documento+Data+Hora;Chave Rot.+Documento+Data+Hora;Chave Rot.+Documento+Data+Hora;U;;;S
+U0F;1;U0F_FILIAL+U0F_CODIGO;Codigo;Codigo;Codigo;U;;;S
+U0G;1;U0G_FILIAL+U0G_PRODUT+U0G_FORPAG+U0G_CONDPG+U0G_ADMFIN+DTOS(U0G_DTINIC)+U0G_HRINIC;Prod+Form+Cond+Adm Fin+Data Inicio+Hora Inicio;Prod+Form+Cond+Adm Fin+Data Inicio+Hora Inicio;Prod+Form+Cond+Adm Fin+Data Inicio+Hora Inicio;U;;;S
+U0H;1;U0H_FILIAL+U0H_OPERAD+U0H_NUMMOV+U0H_ESTACA+U0H_SERIE+U0H_PDV+DTOS(U0H_DTABER)+U0H_HRABER;Operador+Movimento+Codigo Est.+Serie+PDV+Abertura+Hora abertur;Operador+Movimento+Codigo Est.+Serie+PDV+Abertura+Hora abertur;Operador+Movimento+Codigo Est.+Serie+PDV+Abertura+Hora abertur;U;;;S
+U0I;1;U0I_FILIAL+DTOS(U0I_DATA)+U0I_PROD+U0I_TANQUE+U0I_BICO;Data LMC+Produto+Tanque+Bico;Data LMC+Produto+Tanque+Bico;Data LMC+Produto+Tanque+Bico;U;;;S
+U0J;1;U0J_FILIAL+U0J_PREFIX+U0J_NUM+U0J_PARCEL+U0J_TIPO;Prefixo+Numero+Parcela+Tipo;Prefixo+Numero+Parcela+Tipo;Prefixo+Numero+Parcela+Tipo;U;;;S
+U25;1;U25_FILIAL+U25_REPLIC;ID REPLICA;ID REPLICA;ID REPLICA;U;;;N
+U25;2;U25_FILIAL+U25_PRODUT+U25_CLIENT+U25_LOJA+U25_GRPCLI+U25_FORPAG+U25_CONDPG+U25_ADMFIN+U25_EMITEN+U25_LOJEMI+U25_PLACA+DTOS(U25_DTINIC)+U25_HRINIC;Prod+Cli+Loja+GrpCli+Form+Cond+Adm Fin+Emit+Loja E+Placa+Dt Ini+Hr Ini;Prod+Cli+Loja+GrpCli+Form+Cond+Adm Fin+Emit+Loja E+Placa+Dt Ini+Hr Ini;Prod+Cli+Loja+GrpCli+Form+Cond+Adm Fin+Emit+Loja E+Placa+Dt Ini+Hr Ini;U;;;S
+U25;3;U25_FILIAL+U25_CLIENT+U25_LOJA+U25_GRPCLI+U25_PRODUT+U25_FORPAG+U25_CONDPG+U25_ADMFIN+U25_EMITEN+U25_LOJEMI+U25_PLACA+DTOS(U25_DTINIC)+U25_HRINIC;Cli+Loja+GrpCli+Prod+Form+Cond+Adm Fin+Emit+Loja E+Placa+Dt Ini+Hr Ini;Cli+Loja+GrpCli+Prod+Form+Cond+Adm Fin+Emit+Loja E+Placa+Dt Ini+Hr Ini;Cli+Loja+GrpCli+Prod+Form+Cond+Adm Fin+Emit+Loja E+Placa+Dt Ini+Hr Ini;U;;;S
+U44;1;U44_FILIAL+U44_FORMPG+U44_CONDPG;Forma Pgto+Cond Pgto;Forma Pgto+Cond Pgto;Forma Pgto+Cond Pgto;U;;;S
+U52;1;U52_FILIAL+U52_CODCLI+U52_LOJA+U52_GRPVEN+U52_CLASSE+U52_SATIV1;Cliente+Loja+Grp.Clientes+Classe+Segmento;Cliente+Loja+Grp.Clientes+Classe+Segmento;Cliente+Loja+Grp.Clientes+Classe+Segmento;U;;;S
+U52;2;U52_FILIAL+U52_CODCLI+U52_LOJA;Cliente+Loja;Cliente+Loja;Cliente+Loja;U;;;S
+U52;3;U52_FILIAL+U52_GRPVEN;Grp.Clientes;Grp.Clientes;Grp.Clientes;U;;;S
+U52;4;U52_FILIAL+U52_CLASSE;Classe;Classe;Classe;U;;;S
+U52;5;U52_FILIAL+U52_SATIV1;Segmento;Segmento;Segmento;U;;;S
+U53;1;U53_FILIAL+U53_CODCLI+U53_LOJA+U53_GRPVEN+U53_CLASSE+U53_SATIV1+U53_ITEM;Cliente+Loja+Grp.Clientes+Classe+Segmento+Item;Cliente+Loja+Grp.Clientes+Classe+Segmento+Item;Cliente+Loja+Grp.Clientes+Classe+Segmento+Item;U;;;S
+U53;2;U53_FILIAL+U53_FORMPG+U53_CONDPG;Form Pagto+Cond Pagto;Form Pagto+Cond Pagto;Form Pagto+Cond Pagto;U;;;S
+U53;3;U53_FILIAL+U53_FORMPG+U53_CONDPG+U53_CODCLI+U53_LOJA;Form Pagto+Cond Pagto+Cod Cli+Loja Cli;Form Pagto+Cond Pagto+Cod Cli+Loja Cli;Form Pagto+Cond Pagto+Cod Cli+Loja Cli;U;;;S
+U56;1;U56_FILIAL+U56_PREFIX+U56_CODIGO;Prefixo Req.+Codigo;Prefixo Req.+Codigo;Prefixo Req.+Codigo;U;;;S
+U56;2;U56_FILIAL+U56_CODCLI+U56_LOJA;Cliente+Loja;Cliente+Loja;Cliente+Loja;U;;;S
+U56;3;U56_FILIAL+U56_BANCO+U56_AGENCI+U56_NUMCON;Banco+Agencia+Nro Conta;Banco+Agencia+Nro Conta;Banco+Agencia+Nro Conta;U;;;S
+U57;1;U57_FILIAL+U57_PREFIX+U57_CODIGO+U57_PARCEL;Prefixo Req.+Codigo+Parcela;Prefixo Req.+Codigo+Parcela;Prefixo Req.+Codigo+Parcela;U;;;S
+U57;2;U57_FILIAL+DTOS(U57_DATAMO)+U57_XOPERA+U57_XNUMMO+U57_XPDV+U57_XESTAC;Dt Movimento+Operador+Num. Movimen+PDV+Estacao;Dt Movimento+Operador+Num. Movimen+PDV+Estacao;Dt Movimento+Operador+Num. Movimen+PDV+Estacao;U;;;N
+U59;1;U59_FILIAL+U59_LOCAL+U59_PRODUT;Local+Produto;Local+Produto;Local+Produto;U;;;S
+U59;2;U59_FILIAL+U59_PRODUT;Produto;Produto;Produto;U;;;S
+U68;1;U68_FILIAL+U68_CODIGO;Codigo;Codigo;Codigo;U;;;S
+U68;2;U68_FILIAL+U68_VEND;Vendedor;Vendedor;Vendedor;U;;;S
+U68;3;U68_FILIAL+U68_NUM;Num. Cartao;Num. Cartao;Num. Cartao;U;;;N
+U68;4;U68_FILIAL+U68_CONCEN+U68_NUM;Concentrador + Num. Cartao;Concentrador + Num. Cartao;Concentrador + Num. Cartao;U;;;N
+U69;1;U69_FILIAL+U69_DATA+U69_HORA+U69_DOC+U69_SERIE;Data+Hora+Cupom fical+Serie;Data+Hora+Cupom fical+Serie;Data+Hora+Cupom fical+Serie;U;;;N
+U88;1;U88_FILIAL+U88_FORMAP+U88_CLIENT+U88_LOJA;Forma pgto.+Cliente+Loja;Forma pgto.+Cliente+Loja;Forma pgto.+Cliente+Loja;U;;;S
+U88;2;U88_FILIAL+U88_CLIENT+U88_LOJA;Cliente+Loja;Cliente+Loja;Cliente+Loja;U;;;S
+U88;3;U88_FILIAL+U88_NOME;Nome;Nome;Nome;U;;;S
+U92;1;U92_FILIAL+U92_CODIGO;Codigo;Codigo;Codigo;U;;;S
+U98;1;U98_FILIAL+U98_OPERAD+U98_CODIGO;Operadora+Cod.Layout;Operadora+Cod.Layout;Operadora+Cod.Layout;U;;;S
+U98;2;U98_FILIAL+U98_CODIGO+U98_OPERAD;Cod.Layout+Operadora;Cod.Layout+Operadora;Cod.Layout+Operadora;U;;;S
+U99;1;U99_FILIAL+U99_OPERAD+U99_CODIGO+U99_ITEM;Operadora+Item+Cod.Layout;Operadora+Item+Cod.Layout;Operadora+Item+Cod.Layout;U;;;S
+U99;2;U99_FILIAL+U99_OPERAD+U99_CAMPO+U99_CODIGO;Operadora+Campo+Cod.Layout;Operadora+Campo+Cod.Layout;Operadora+Campo+Cod.Layout;U;;;S
+UB4;1;UB4_FILIAL+UB4_CODIGO;Codigo;Codigo;Codigo;U;;;S
+UB4;2;UB4_FILIAL+UB4_DESCRI+UB4_COMPET;Descricao+Competencia;Descricao+Competencia;Descricao+Competencia;U;;;S
+UB4;3;UB4_FILIAL+UB4_PROD+UB4_NUMERO;Produto+Numero;Produto+Numero;Produto+Numero;U;;;S
+UC0;1;UC0_FILIAL+UC0_NUM;Num Comp.;Num Comp.;Num Comp.;U;;;S
+UC0;2;UC0_FILIAL+DTOS(UC0_DATA)+UC0_NUM;Data Comp.+Num Comp.;Data Comp.+Num Comp.;Data Comp.+Num Comp.;U;;;S
+UC0;3;UC0_FILIAL+DTOS(UC0_DATA)+UC0_OPERAD+UC0_NUMMOV+UC0_PDV+UC0_ESTACA;Data Comp.+Operador+Num. Movimen+PDV+Estacao;Data Comp.+Operador+Num. Movimen+PDV+Estacao;Data Comp.+Operador+Num. Movimen+PDV+Estacao;U;;;N
+UC1;1;UC1_FILIAL+UC1_NUM+UC1_FORMA+UC1_SEQ;Num Comp.+Forma Pgto+Seq. Parcela;Num Comp.+Forma Pgto+Seq. Parcela;Num Comp.+Forma Pgto+Seq. Parcela;U;;;S
+UC2;1;UC2_FILIAL+UC2_GRUPO+UC2_USER+UC2_ROTINA;Grupo User+Usuario+Rotina;Grupo User+Usuario+Rotina;Grupo User+Usuario+Rotina;U;;;S
+UC2;2;UC2_FILIAL+UC2_ROTINA+UC2_USER+UC2_GRUPO;Rotina+Usuario+Grupo User;Rotina+Usuario+Grupo User;Rotina+Usuario+Grupo User;U;;;S
+UC3;1;UC3_FILIAL+UC3_COD;Cod.Segmento;Cod.Segmento;Cod.Segmento;U;;;S
+UC3;2;UC3_FILIAL+UC3_DESC;Descrição;Descrição;Descrição;U;;;S
+UC4;1;UC4_FILIAL+UC4_CLIENT+UC4_LOJA+UC4_SEG;Cod.Cliente+Loja Cliente+Segmento;Cod.Cliente+Loja Cliente+Segmento;Cod.Cliente+Loja Cliente+Segmento;U;;;S
+UC4;2;UC4_FILIAL+UC4_GRUPO+UC4_SEG;Grupo Cli.+Segmento;Grupo Cli.+Segmento;Grupo Cli.+Segmento;U;;;S
+UC4;3;UC4_FILIAL+UC4_CLIENT+UC4_LOJA+UC4_GRUPO+UC4_SEG;Cod.Cliente+Loja Cliente+Grupo Cli.+Segmento;Cod.Cliente+Loja Cliente+Grupo Cli.+Segmento;Cod.Cliente+Loja Cliente+Grupo Cli.+Segmento;U;;;S
+UC5;1;UC5_FILIAL+UC5_COD+UC5_FILERP;Cod.Segmento+Filial;Cod.Segmento+Filial;Cod.Segmento+Filial;U;;;S
+UC5;2;UC5_FILIAL+UC5_FILERP;Filial;Filial;Filial;U;;;S
+UC5;3;UC5_FILIAL+UC5_CNPJ;CNPJ;CNPJ;CNPJ;U;;;S
+UCA;1;UCA_FILIAL+UCA_ALIORI+UCA_ALIRET;Alias Origem+Alias Retorn;Alias Origem+Alias Retorn;Alias Origem+Alias Retorn;U;;;S
+UF1;1;UF1_FILIAL+UF1_COD+UF1_AGENCI+UF1_NUMCON+UF1_SEQUEN;Banco+Nro Agencia+Nro Conta+Sequencia;Banco+Nro Agencia+Nro Conta+Sequencia;Banco+Nro Agencia+Nro Conta+Sequencia;U;;;S
+UF2;1;UF2_FILIAL+UF2_BANCO+UF2_AGENCI+UF2_CONTA+UF2_SEQUEN+UF2_NUM;Banco+Agencia+Conta+Sequencia+Nro Cheque;Banco+Agencia+Conta+Sequencia+Nro Cheque;Banco+Agencia+Conta+Sequencia+Nro Cheque;U;;;S
+UF2;2;UF2_FILIAL+UF2_BANCO+UF2_AGENCI+UF2_CONTA+UF2_NUM;Banco+Agencia+Conta+Nro Cheque;Banco+Agencia+Conta+Nro Cheque;Banco+Agencia+Conta+Nro Cheque;U;;;S
+UF2;3;UF2_FILIAL+UF2_DOC+UF2_SERIE+UF2_PDV;Num. Cupom+Serie+Pdv;Num. Cupom+Serie+Pdv;Num. Cupom+Serie+Pdv;U;;;N
+UF2;4;UF2_FILIAL+UF2_CODBAR;Cod Barras;Cod Barras;Cod Barras;U;;;N
+UF2;5;UF2_FILIAL+UF2_NUM+UF2_BANCO+UF2_AGENCI+UF2_CONTA;Nro Cheque+Banco+Agencia+Conta;Nro Cheque+Banco+Agencia+Conta;Nro Cheque+Banco+Agencia+Conta;U;;;N
+UF6;1;UF6_FILIAL+UF6_CODIGO;Codigo;Codigo;Codigo;U;;;S
+UF6;2;UF6_FILIAL+UF6_DESC;Descricao;Descricao;Descricao;U;;;S
+UH8;1;UH8_FILIAL+UH8_FORNEC+UH8_LOJA;Fornecedor+Loja;Fornecedor+Loja;Fornecedor+Loja;U;;;S
+UH9;1;UH9_FILIAL+UH9_FORNEC+UH9_LOJA+UH9_PRODUT;Fornecedor+Loja+Produto;Fornecedor+Loja+Produto;Fornecedor+Loja+Produto;U;;;N
+UI0;1;UI0_FILIAL+UI0_GRPCLI+UI0_CLIENT+UI0_LOJA;Grupo cli+Cliente+Loja;Grupo cli+Cliente+Loja;Grupo cli+Cliente+Loja;U;;;S
+UI1;1;UI1_FILIAL+UI1_GRPCLI+UI1_CLIENT+UI1_LOJA+UI1_FORNEC+UI1_LOJAFO;Grupo cli+Cliente+Loja+Fornecedor+Loja;Grupo cli+Cliente+Loja+Fornecedor+Loja;Grupo cli+Cliente+Loja+Fornecedor+Loja;U;;;N
+UIB;1;UIB_FILIAL+UIB_GRPCLI+UIB_CLIENT+UIB_LOJA+UIB_FORNEC+UIB_LOJAFO+UIB_PRODUT;Grp Cliente+Cliente+Loja Cliente+Fornecedor+Loja Fornece+Produto;Grp Cliente+Cliente+Loja Cliente+Fornecedor+Loja Fornece+Produto;Grp Cliente+Cliente+Loja Cliente+Fornecedor+Loja Fornece+Produto;U;;;N
+UIB;2;UIB_FILIAL+UIB_GRPCLI+UIB_CLIENT+UIB_LOJA+UIB_PRODUT;Grp Cliente+Cliente+Loja Cliente+Produto;Grp Cliente+Cliente+Loja Cliente+Produto;Grp Cliente+Cliente+Loja Cliente+Produto;U;;;N
+UIC;1;UIC_FILIAL+UIC_AMB+UIC_CODIGO;Filial+Ambiente+Codigo;Filial+Ambiente+Codigo;Filial+Ambiente+Codigo;U;;;S
+UIC;2;UIC_FILIAL+UIC_FORNEC+UIC_LOJAF;Fornecedor+Loja;Fornecedor+Loja;Fornecedor+Loja;U;;;S
+UIC;3;UIC_FILIAL+UIC_NOMEF;Nome;Nome;Nome;U;;;S
+ZE0;1;ZE0_FILIAL+ZE0_TANQUE;Nr Tanque;Nr Tanque;Nr Tanque;U;;;S
+ZE3;1;ZE3_FILIAL+ZE3_NUMERO;Numero CRC;Numero CRC;Numero CRC;U;;;S
+ZE3;2;ZE3_FILIAL+ZE3_PEDIDO;Nr Pedido;Nr Pedido;Nr Pedido;U;;;N
+ZE4;1;ZE4_FILIAL+ZE4_NUMERO+ZE4_PRODUT+ZE4_SEQ;Numero CRC+Produto+Sequencia;Numero CRC+Produto+Sequencia;Numero CRC+Produto+Sequencia;U;;;S
+ZE4;2;ZE4_FILIAL+ZE4_TANQUE;Grupo Tanque;Tanque;Tanque;U;;;S
+ZE4;3;ZE4_FILIAL+ZE4_NUMERO+ZE4_PEDIDO+ZE4_ITEMPE+ZE4_SEQ+ZE4_ITEM;Numero CRC+Pedido de Cp+Item Pedido+Sequencia+Item;Numero CRC+Pedido de Cp+Item Pedido+Sequencia+Item;Numero CRC+Pedido de Cp+Item Pedido+Sequencia+Item;U;;;N
+ZE5;1;ZE5_FILIAL+ZE5_PEDIDO+ZE5_ITEMPE+ZE5_LACRAM;Filial + Pedido de compra+Item Pedido+LacreAmostra;Nr CRC+Nr.Comparime+Sucursal+Pedido Comp+Item Pedido+LacreAmostra;Nr CRC+Nr.Comparime+Sucursal+Pedido Comp+Item Pedido+LacreAmostra;U;;;S
+ZE6;1;ZE6_FILIAL+ZE6_TABELA;Cod. Tabela;Cod. Tabela;Cod. Tabela;U;;;S
+ZE7;1;ZE7_FILIAL+ZE7_CODIGO+STR(ZE7_MEDIDA);Codigo+Medida;Codigo+Medida;Codigo+Medida;U;;;S

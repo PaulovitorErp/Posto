@@ -1,0 +1,5 @@
+XA_ALIAS;XA_ORDEM;XA_DESCRIC;XA_DESCSPA;XA_DESCENG;XA_PROPRI;XA_AGRUP;XA_TIPO
+U25;1;Negociacao Precos;Negociacao Precos;Negociacao Precos;U;;
+U25;2;Operacoes;Operacoes;Operacoes;U;;
+U88;1;Dados Cadastrais;.;.;U;;
+U88;2;Cobranca - Fatura;.;.;U;;

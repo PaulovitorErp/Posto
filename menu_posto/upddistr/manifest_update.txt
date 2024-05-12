@@ -1,0 +1,12 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 16/05/2023
+Hora : 17:57:20
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000005
+Descrição : POSTO                                             
+Versão : 0001
+Release de referência : 12.1.2210 
+Responsável pelo Projeto: 000000 - Administrador
+Geração do Pacote: 000000 - Administrador
+-----------------------------

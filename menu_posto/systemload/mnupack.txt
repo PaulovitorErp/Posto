@@ -1,0 +1,1273 @@
+00056588SIGAESP                                           97<ApMenu>
+	<DocumentProperties>
+		<Module>SIGAESP</Module>
+		<Version>10.1</Version>
+	</DocumentProperties>
+	<Menu Status="Enable">
+		<Title lang="pt">&Atualizações</Title>
+		<Title lang="es">&Actualizaciones</Title>
+		<Title lang="en">&Updates</Title>
+		<ItemId>A970000001</ItemId>
+		<Menu Status="Enable">
+			<Title lang="pt">Cadastros</Title>
+			<Title lang="es">Archivos</Title>
+			<Title lang="en">File</Title>
+			<ItemId>0000011147</ItemId>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Clientes</Title>
+				<Title lang="es">Clientes</Title>
+				<Title lang="en">Customers</Title>
+				<Function>MATA030</Function>
+				<Type>01</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Grupo de Clientes</Title>
+				<Title lang="es">Grupo de Clientes</Title>
+				<Title lang="en">Customers Group</Title>
+				<Function>FATA110</Function>
+				<Type>01</Type>
+				<Tables>ACY</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>5</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Produtos</Title>
+				<Title lang="es">Productos</Title>
+				<Title lang="en">Products</Title>
+				<Function>MATA010</Function>
+				<Type>01</Type>
+				<Tables>SB2</Tables>
+				<Tables>SB3</Tables>
+				<Tables>SB4</Tables>
+				<Tables>SB5</Tables>
+				<Tables>SB6</Tables>
+				<Tables>SB8</Tables>
+				<Tables>SBE</Tables>
+				<Tables>SBF</Tables>
+				<Tables>SBJ</Tables>
+				<Tables>SC1</Tables>
+				<Tables>SC2</Tables>
+				<Tables>SC3</Tables>
+				<Tables>SC4</Tables>
+				<Tables>SC6</Tables>
+				<Tables>SC7</Tables>
+				<Tables>SD1</Tables>
+				<Tables>SD2</Tables>
+				<Tables>SD3</Tables>
+				<Tables>SD4</Tables>
+				<Tables>SDD</Tables>
+				<Tables>SED</Tables>
+				<Tables>SG1</Tables>
+				<Tables>SG2</Tables>
+				<Tables>SI3</Tables>
+				<Tables>SI4</Tables>
+				<Tables>SIC</Tables>
+				<Tables>SID</Tables>
+				<Tables>SJ2</Tables>
+				<Tables>SM2</Tables>
+				<Tables>SYD</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>2</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Vendedores</Title>
+				<Title lang="es">Vendedores</Title>
+				<Title lang="en">Sales Represent.</Title>
+				<Function>MATA040</Function>
+				<Type>01</Type>
+				<Tables>SC5</Tables>
+				<Tables>SE3</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>5</Owner>
+				<KeyWord>
+					<KeyWord lang="pt">Venda,comercial</KeyWord>
+					<KeyWord lang="es">Venta,comercial</KeyWord>
+					<KeyWord lang="en">Sales,commercial</KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Motoristas</Title>
+				<Title lang="es">Conductores</Title>
+				<Title lang="en">Drivers</Title>
+				<Function>OMSA040</Function>
+				<Type>01</Type>
+				<Tables>DA4</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>39</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Veiculos</Title>
+				<Title lang="es">Vehiculos</Title>
+				<Title lang="en">Vehicles</Title>
+				<Function>OMSA060</Function>
+				<Type>01</Type>
+				<Tables>DA3</Tables>
+				<Tables>DA4</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>39</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Transferencia Veiculo</Title>
+				<Title lang="es">Transferencia Veiculo</Title>
+				<Title lang="en">Transferencia Veiculo</Title>
+				<Function>TRETA003</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Administradoras Financeir</Title>
+				<Title lang="es">Administradoras Financier</Title>
+				<Title lang="en">Financial Companies</Title>
+				<Function>LOJA070</Function>
+				<Type>01</Type>
+				<Tables>SAE</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>12</Owner>
+				<KeyWord>
+					<KeyWord lang="pt">Administradora</KeyWord>
+					<KeyWord lang="es">Administradora</KeyWord>
+					<KeyWord lang="en">Provider</KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Codigo de Administradores</Title>
+				<Title lang="es">Codigo de Administradores</Title>
+				<Title lang="en">Sitef Administrator Code</Title>
+				<Function>LOJA075</Function>
+				<Type>01</Type>
+				<Tables>MDE</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt">Transferencia,eletronica,</KeyWord>
+					<KeyWord lang="es">Transferencia,electronica</KeyWord>
+					<KeyWord lang="en">Transfer,electronic,fund,</KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Executor</Title>
+				<Title lang="es">Executor</Title>
+				<Title lang="en">Executor</Title>
+				<Function>RUNAPLICA</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Cheque Troco</Title>
+				<Title lang="es">Cheque Troco</Title>
+				<Title lang="en">Cheque Troco</Title>
+				<Function>TRETA034</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Transferencia de Ch Troco</Title>
+				<Title lang="es">Transferencia de Ch Troco</Title>
+				<Title lang="en">Transferencia de Ch Troco</Title>
+				<Function>TRETA038</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Perfil Acesso Usuario</Title>
+				<Title lang="es">Perfil Acesso Usuario</Title>
+				<Title lang="en">Perfil Acesso Usuario</Title>
+				<Function>TRETA037</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Motivo de Devolucao</Title>
+				<Title lang="es">Motivo de Devolucao</Title>
+				<Title lang="en">Motivo de Devolucao</Title>
+				<Function>TRETA045</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Movimentos</Title>
+			<Title lang="es">Movimientos</Title>
+			<Title lang="en">Transactions</Title>
+			<ItemId>0000011155</ItemId>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Orcamentos</Title>
+				<Title lang="es">Orcamentos</Title>
+				<Title lang="en">Orcamentos</Title>
+				<Function>TPDVA001</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Conferencia de Caixa</Title>
+				<Title lang="es">Conferencia de Caixa</Title>
+				<Title lang="en">Conferencia de Caixa</Title>
+				<Function>TRETA028</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Requisicoes</Title>
+				<Title lang="es">Requisicoes</Title>
+				<Title lang="en">Requisicoes</Title>
+				<Function>TRETA032</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Troca / Devolução</Title>
+				<Title lang="es">Rutina de Cambio</Title>
+				<Title lang="en">Exchange Routine</Title>
+				<Function>LOJA720</Function>
+				<Type>01</Type>
+				<Tables>SAF</Tables>
+				<Tables>SB0</Tables>
+				<Tables>SB1</Tables>
+				<Tables>SB8</Tables>
+				<Tables>SBF</Tables>
+				<Tables>SC9</Tables>
+				<Tables>SDB</Tables>
+				<Tables>SDC</Tables>
+				<Tables>SL1</Tables>
+				<Tables>SL2</Tables>
+				<Tables>SYP</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>12</Module>
+				<Owner>12</Owner>
+				<KeyWord>
+					<KeyWord lang="pt">Devolucao</KeyWord>
+					<KeyWord lang="es">Devolucion</KeyWord>
+					<KeyWord lang="en">Return</KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Acomp. de Inutilizações</Title>
+				<Title lang="es">Acomp. de Inutilizações</Title>
+				<Title lang="en">Acomp. de Inutilizações</Title>
+				<Function>LOJA784</Function>
+				<Type>01</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>12</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Estoque Exposicao</Title>
+			<Title lang="es">Estoque Exposicao</Title>
+			<Title lang="en">Estoque Exposicao</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Estoque Exposicao</Title>
+				<Title lang="es">Estoque Exposicao</Title>
+				<Title lang="en">Estoque Exposicao</Title>
+				<Function>TRETA006</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Transf. Itens Reposicao</Title>
+				<Title lang="es">Transf. Itens Reposicao</Title>
+				<Title lang="en">Transferencia Itens Repos</Title>
+				<Function>TRETA007</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Controle de Combustiveis</Title>
+			<Title lang="es">Control de Combustibles</Title>
+			<Title lang="en">Fuel Control</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Concentradoras</Title>
+				<Title lang="es">Concentradoras</Title>
+				<Title lang="en">Concentradoras</Title>
+				<Function>TRETA011</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Identfid</Title>
+				<Title lang="es">Identfid</Title>
+				<Title lang="en">Identfid</Title>
+				<Function>TRETA005</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Controle de Postos</Title>
+				<Title lang="es">Controle de Postos</Title>
+				<Title lang="en">Controle de Postos</Title>
+				<Function>TRETA004</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>06</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Abastecimentos</Title>
+				<Title lang="es">Abastecimentos</Title>
+				<Title lang="en">Abastecimentos</Title>
+				<Function>TRETA008</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Tanque Fisico</Title>
+				<Title lang="es">Tanque Fisico</Title>
+				<Title lang="en">Tanque Fisico</Title>
+				<Function>TRETA012</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Volume de Tanque</Title>
+				<Title lang="es">Volume de Tanque</Title>
+				<Title lang="en">Volume de Tanque</Title>
+				<Function>TRETA013</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Medicao de Tanque</Title>
+				<Title lang="es">Medicao de Tanque</Title>
+				<Title lang="en">Medicao de Tanque</Title>
+				<Function>TRETA015</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Manutencao de Bomba</Title>
+				<Title lang="es">Manutencao de Bomba</Title>
+				<Title lang="en">Manutencao de Bomba</Title>
+				<Function>TRETA027</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Movimentacao Combustiveis</Title>
+			<Title lang="es">Movimentacao Combustiveis</Title>
+			<Title lang="en">Movimentacao Combustiveis</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Numeracao Lmc Mod2</Title>
+				<Title lang="es">Numeracao Lmc Mod2</Title>
+				<Title lang="en">Numeracao Lmc Mod2</Title>
+				<Function>TRETA009</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>12</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Manutencao Lmc Mod2</Title>
+				<Title lang="es">Manutencao Lmc Mod2</Title>
+				<Title lang="en">Manutencao Lmc Mod2</Title>
+				<Function>TRETA010</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>12</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Cadastro Crc</Title>
+				<Title lang="es">Cadastro Crc</Title>
+				<Title lang="en">Cadastro Crc</Title>
+				<Function>TRETA020</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Amostras - Crc</Title>
+				<Title lang="es">Amostras - Crc</Title>
+				<Title lang="en">Amostras - Crc</Title>
+				<Function>TRETA048</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Conciliacao de Cartao</Title>
+			<Title lang="es">Conciliacao de Cartao</Title>
+			<Title lang="en">Conciliacao de Cartao</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Layout Importacao</Title>
+				<Title lang="es">Layout Importacao</Title>
+				<Title lang="en">Layout Importacao</Title>
+				<Function>TRETA018</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Conciliacao Extrato</Title>
+				<Title lang="es">Conciliacao Extrato</Title>
+				<Title lang="en">Conciliacao Extrato</Title>
+				<Function>TRETA019</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Negociacao</Title>
+			<Title lang="es">Negociacao</Title>
+			<Title lang="en">Negociacao</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Condições de Pagamento</Title>
+				<Title lang="es">Condiciones de Pago</Title>
+				<Title lang="en">Payment Terms</Title>
+				<Function>MATA360</Function>
+				<Type>01</Type>
+				<Tables>SE4</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>2</Owner>
+				<ItemId>0000000705</ItemId>
+				<KeyWord>
+					<KeyWord lang="pt">Condicao,condicoes</KeyWord>
+					<KeyWord lang="es">Condicion,condiciones</KeyWord>
+					<KeyWord lang="en">Condition,conditions</KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Tabelas de Preço</Title>
+				<Title lang="es">Listas de Precio</Title>
+				<Title lang="en">Price Lists</Title>
+				<Function>OMSA010</Function>
+				<Type>01</Type>
+				<Tables>DA0</Tables>
+				<Tables>DA1</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>5</Owner>
+				<ItemId>0000000719</ItemId>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Negociacao de Pagamento</Title>
+				<Title lang="es">Negociacao de Pagamento</Title>
+				<Title lang="en">Negociacao de Pagamento</Title>
+				<Function>TRETA021</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Regras de Negoc. Clientes</Title>
+				<Title lang="es">Regras de Negoc. Clientes</Title>
+				<Title lang="en">Regras de Negoc. Clientes</Title>
+				<Function>TRETA022</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Preco Negociado</Title>
+				<Title lang="es">Preco Negociado</Title>
+				<Title lang="en">Preco Negociado</Title>
+				<Function>TRETA023</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Ajuste Preco Negociado</Title>
+				<Title lang="es">Ajuste Preco Negociado</Title>
+				<Title lang="en">Ajuste Preco Negociado</Title>
+				<Function>TRETA024</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Tipo de Preco Base</Title>
+				<Title lang="es">Tipo de Preco Base</Title>
+				<Title lang="en">Tipo de Preco Base</Title>
+				<Function>TRETA029</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Tabela de Preco Base</Title>
+				<Title lang="es">Tabela de Preco Base</Title>
+				<Title lang="en">Tabela de Preco Base</Title>
+				<Function>TRETA030</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Acompanhamento de Precos</Title>
+				<Title lang="es">Acompanhamento de Precos</Title>
+				<Title lang="en">Acompanhamento de Precos</Title>
+				<Function>TRETA047</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Acomp. Historico Precos</Title>
+				<Title lang="es">Acomp. Historico Precos</Title>
+				<Title lang="en">Acomp. Historico Precos</Title>
+				<Function>TRETA049</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Vale Servico</Title>
+			<Title lang="es">Vale Servico</Title>
+			<Title lang="en">Vale Servico</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Servicos Fornecedor</Title>
+				<Title lang="es">Servicos Fornecedor</Title>
+				<Title lang="en">Servicos Fornecedor</Title>
+				<Function>TRETA031</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Negociacao de Precos</Title>
+				<Title lang="es">Negociacao de Precos</Title>
+				<Title lang="en">Negociacao de Precos</Title>
+				<Function>TRETA033</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Vale Servico</Title>
+				<Title lang="es">Vale Servico</Title>
+				<Title lang="en">Vale Servico</Title>
+				<Function>TRETA036</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Faturamento</Title>
+			<Title lang="es">Faturamento</Title>
+			<Title lang="en">Faturamento</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Configurar Faturamento</Title>
+				<Title lang="es">Configurar Faturamento</Title>
+				<Title lang="en">Configurar Faturamento</Title>
+				<Function>TRETA017</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Faturamento Manual V2</Title>
+				<Title lang="es">Faturamento Manual V2</Title>
+				<Title lang="en">Faturamento Manual V2</Title>
+				<Function>TRETE017</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Gera Nf-e</Title>
+				<Title lang="es">Gera Nf-e</Title>
+				<Title lang="en">Gera Nf-e</Title>
+				<Function>TRETA042</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Funcoes Nf-e Nfc-e</Title>
+				<Title lang="es">Funcoes Nf-e Nfc-e</Title>
+				<Title lang="en">Funcoes Nf-e Nfc-e</Title>
+				<Function>TRETA016</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Nf-e Sefaz</Title>
+				<Title lang="es">E-fact Sefaz</Title>
+				<Title lang="en">Nf-e Sefaz</Title>
+				<Function>SPEDNFE</Function>
+				<Type>01</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>5</Owner>
+				<ItemId>0000000862</ItemId>
+				<KeyWord>
+					<KeyWord lang="pt">Nota,fiscal,eletronica</KeyWord>
+					<KeyWord lang="es">Factura,factura,electronica</KeyWord>
+					<KeyWord lang="en">Invoice,tax,electronic</KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<MenuItem Status="Enable">
+			<Title lang="pt">Historico de Vendas</Title>
+			<Title lang="es">Historico de Vendas</Title>
+			<Title lang="en">Historico de Vendas</Title>
+			<Function>TRETA041</Function>
+			<Type>03</Type>
+			<Access>xxxxxxxxxx</Access>
+			<Module>23</Module>
+			<Owner>0</Owner>
+			<KeyWord>
+				<KeyWord lang="pt"></KeyWord>
+				<KeyWord lang="es"></KeyWord>
+				<KeyWord lang="en"></KeyWord>
+			</KeyWord>
+		</MenuItem>
+	</Menu>
+	<Menu Status="Enable">
+		<Title lang="pt">&Consultas</Title>
+		<Title lang="es">&Consultas</Title>
+		<Title lang="en">&Queries</Title>
+		<ItemId>A970000002</ItemId>
+		<Menu Status="Enable">
+			<Title lang="pt">Cadastros</Title>
+			<Title lang="es">Archivos</Title>
+			<Title lang="en">File</Title>
+			<ItemId>0000011160</ItemId>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Genéricos</Title>
+				<Title lang="es">Genericos</Title>
+				<Title lang="en">Generic</Title>
+				<Function>EDAPP</Function>
+				<Type>01</Type>
+				<Tables>MID</Tables>
+				<Tables>SD1</Tables>
+				<Tables>SD2</Tables>
+				<Tables>SF1</Tables>
+				<Tables>SF2</Tables>
+				<Tables>SF3</Tables>
+				<Tables>SFT</Tables>
+				<Tables>SL2</Tables>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+	</Menu>
+	<Menu Status="Enable">
+		<Title lang="pt">&Relatorios</Title>
+		<Title lang="es">&Informes</Title>
+		<Title lang="en">&Reports</Title>
+		<ItemId>A970000003</ItemId>
+		<Menu Status="Enable">
+			<Title lang="pt">Estoque de Exposicao</Title>
+			<Title lang="es">Estoque de Exposicao</Title>
+			<Title lang="en">Estoque de Exposicao</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Itens Sem Est. Exposicao</Title>
+				<Title lang="es">Itens Sem Est. Exposicao</Title>
+				<Title lang="en">Itens Sem Est. Exposicao</Title>
+				<Function>TRETR001</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Est. Exposicao Em Falta</Title>
+				<Title lang="es">Est. Exposicao Em Falta</Title>
+				<Title lang="en">Est. Exposicao Em Falta</Title>
+				<Function>TRETR002</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Itens Parados</Title>
+				<Title lang="es">Itens Parados</Title>
+				<Title lang="en">Itens Parados</Title>
+				<Function>TRETR003</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Movimentacao Combustiveis</Title>
+			<Title lang="es">Movimentacao Combustiveis</Title>
+			<Title lang="en">Movimentacao Combustiveis</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Termo Abertura/fechamento</Title>
+				<Title lang="es">Termo Abertura/fechamento</Title>
+				<Title lang="en">Termo Abertura/fechamento</Title>
+				<Function>TRETR004</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Livro Mov. Combustivel</Title>
+				<Title lang="es">Livro Mov. Combustivel</Title>
+				<Title lang="en">Livro Mov. Combustivel</Title>
+				<Function>TRETR005</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Trancamento</Title>
+				<Title lang="es">Trancamento</Title>
+				<Title lang="en">Trancamento</Title>
+				<Function>TRETR006</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Crc</Title>
+				<Title lang="es">Crc</Title>
+				<Title lang="en">Crc</Title>
+				<Function>TRETR007</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Amostra - Testemunha Crc</Title>
+				<Title lang="es">Amostra - Testemunha Crc</Title>
+				<Title lang="en">Amostra - Testemunha Crc</Title>
+				<Function>TRETR016</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Analise Qualidade Amostra</Title>
+				<Title lang="es">Analise Qualidade Amostra</Title>
+				<Title lang="en">Analise Qualidade Amostra</Title>
+				<Function>TRETR017</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Aferições Por Período</Title>
+				<Title lang="es">Aferições Por Período</Title>
+				<Title lang="en">Aferições Por Período</Title>
+				<Function>TRETR019</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Vendas Online</Title>
+				<Title lang="es">Vendas Online</Title>
+				<Title lang="en">Vendas Online</Title>
+				<Function>TRETR020</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Vendas Por Grupo</Title>
+				<Title lang="es">Vendas Por Grupo</Title>
+				<Title lang="en">Vendas Por Grupo</Title>
+				<Function>TRETR021</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Faturamento</Title>
+			<Title lang="es">Faturamento</Title>
+			<Title lang="en">Faturamento</Title>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Log Exclusao de Faturas</Title>
+				<Title lang="es">Log Exclusao de Faturas</Title>
+				<Title lang="en">Log Exclusao de Faturas</Title>
+				<Function>TRETR018</Function>
+				<Type>03</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>05</Module>
+				<Owner>0</Owner>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+	</Menu>
+	<Menu Status="Enable">
+		<Title lang="pt">&Miscelanea</Title>
+		<Title lang="es">&Miscelanea</Title>
+		<Title lang="en">&Miscellaneous</Title>
+		<ItemId>A970000004</ItemId>
+		<Menu Status="Enable">
+			<Title lang="pt">Processos</Title>
+			<Title lang="es">Procesos</Title>
+			<Title lang="en">Processes</Title>
+			<ItemId>0000011193</ItemId>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Importação Cliente</Title>
+				<Title lang="es">Importac. Cliente</Title>
+				<Title lang="en">Import Customer</Title>
+				<Function>SBIA200</Function>
+				<Type>01</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<ItemId>0000011194</ItemId>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Leitura do Log</Title>
+				<Title lang="es">Lectura Del Log</Title>
+				<Title lang="en">Log Reading</Title>
+				<Function>SBIA210</Function>
+				<Type>01</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<ItemId>0000011195</ItemId>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Fechamento</Title>
+				<Title lang="es">Cierre</Title>
+				<Title lang="en">Closing</Title>
+				<Function>SBIA220</Function>
+				<Type>01</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<ItemId>0000011196</ItemId>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Planilha Excel</Title>
+				<Title lang="es">Planilla Excel</Title>
+				<Title lang="en">Excel Worksheet</Title>
+				<Function>APEXCEL</Function>
+				<Type>01</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<ItemId>0000011198</ItemId>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+		<Menu Status="Enable">
+			<Title lang="pt">Workflow</Title>
+			<Title lang="es">Workflow</Title>
+			<Title lang="en">Workflow</Title>
+			<ItemId>0000011200</ItemId>
+			<MenuItem Status="Enable">
+				<Title lang="pt">Rastreabilidade</Title>
+				<Title lang="es">Trazabilidad</Title>
+				<Title lang="en">Trackability</Title>
+				<Function>WFC001</Function>
+				<Type>01</Type>
+				<Access>xxxxxxxxxx</Access>
+				<Module>23</Module>
+				<Owner>0</Owner>
+				<ItemId>0000011201</ItemId>
+				<KeyWord>
+					<KeyWord lang="pt"></KeyWord>
+					<KeyWord lang="es"></KeyWord>
+					<KeyWord lang="en"></KeyWord>
+				</KeyWord>
+			</MenuItem>
+		</Menu>
+	</Menu>
+</ApMenu>

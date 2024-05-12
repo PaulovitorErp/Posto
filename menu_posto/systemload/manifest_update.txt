@@ -1,0 +1,12 @@
+MANIFESTO DE ATUALIZAÇÃO
+
+Data : 10/04/2023
+Hora : 16:12:01
+Arquivo de atualização diferencial baseado em projeto gerado pelo Configurador
+Projeto : 000001
+Descrição : MENU DO POSTO                                     
+Versão : 0001
+Release de referência : 12.1.033  
+Responsável pelo Projeto: 000003 - totvs
+Geração do Pacote: 000003 - totvs
+-----------------------------
