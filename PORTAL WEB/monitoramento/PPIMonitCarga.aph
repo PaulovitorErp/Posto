@@ -1,0 +1,200 @@
+<%  
+//parametro para definir o tempo de refresh de cargas, em segundos
+Local cTimerCarga := SuperGetMv("PPI_TCARGA",,"60") 
+Local aHosts := U_PPIMonitCarga(1)
+Local nX, nY
+HTTPSESSION->MNUACTIVE := 1.2
+
+%>
+<%=H_PPIHeader() %>
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0 text-dark">Monitor de Cargas</h1>
+          </div><!-- /.col -->
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="index.apw">Home</a></li>
+              <li class="breadcrumb-item active">
+              Monitoramento 
+              <button id="btnRefresh" onclick="refreshTela()" class="btn btn-sm btn-default ml-3"><i class="fas fa-sync-alt"></i></button>
+              </li>
+            </ol>
+          </div><!-- /.col -->
+        </div><!-- /.row -->
+      </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+
+    <!-- Main content -->
+    <div class="content">
+      <div class="container-fluid">
+        <div class="row">
+
+          <% 
+          for nX:=1 to len(aHosts) 
+          %>
+
+          <div class="col-md-12">
+            <div class="card mb-1">
+              <div class="card-header pt-1 pb-1">
+                <span class="card-title"><%= 'Filial: ' + aHosts[nX][1] + ' ' +FWFilialName(SubStr(aHosts[nX][1],1,2), SubStr(aHosts[nX][1],4)) %></span>
+                <div class="card-tools">
+                  <span id="status_fil_<%=aHosts[nX][1]%>" class="badge badge-danger">&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                  <button type="button" id="fil_min" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
+                  </button>
+                </div>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body p-2">
+                <div class="row">
+
+                <% 
+                for nY:=1 to len(aHosts[nX][2]) 
+                %>
+
+                  <div class="col-md-4">
+                    <div class="info-box mb-0">
+                      <span id="corhost_<%=aHosts[nX][2][nY][1]%>" class="info-box-icon elevation-1 bg-secondary"><i class="fas fa-desktop"></i></span>
+
+                      <div class="info-box-content" style="line-height: 1.2;">
+                        <span class="info-box-text"><%= aHosts[nX][2][nY][2] %></span>
+                        <span class="info-box-number" id="cargas_<%=aHosts[nX][2][nY][1]%>">-</span>
+                        <small>Status: <span id="sthost_<%=aHosts[nX][2][nY][1]%>">-</span></small>
+                      </div>
+                      <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                  </div>
+                  <!-- /.col -->
+
+                <% 
+                next nY
+                %>
+
+                </div>
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!--/.card -->
+          </div>
+          <!-- /.col -->
+          
+          <% 
+          next nX
+          %>
+
+        </div>
+        <!-- /.row -->
+      </div>
+      <!-- /.container-fluid -->
+
+      <div class="container-fluid">
+        <div class="small">Legenda: </div>
+        <div class="row">
+          <div class="col-md-4"><i class="fas fa-circle text-success"></i> &nbsp;Host online e atualizando </div>
+          <div class="col-md-4"><i class="fas fa-circle text-warning"></i> &nbsp;Host online com atrazo </div>
+          <div class="col-md-4"><i class="fas fa-circle text-danger"></i> &nbsp;Host offline ou muito atrazado </div>
+          <!-- /.col -->
+        </div>
+        <!-- /.row -->
+      </div>
+      <!-- /.container-fluid -->
+
+    </div>
+    <!-- /.content -->
+  </div>
+  <!-- /.content-wrapper -->
+
+      
+
+<%=H_PPIFooter() %>
+
+<script>
+
+//timer de refresh
+refreshTela(); //roda a primeira vez
+var interval = (<%=cTimerCarga%>*1000);
+setInterval( function () {
+  refreshTela();
+}, interval );
+
+//faz refresh no grid buscando no host
+function refreshTela() {
+  
+  $('#btnRefresh').prop("disabled", true);//disabled
+  $('.fa-sync-alt').addClass("fa-spin");
+
+  $.post("refresh_monitorcarga.apw", {}, function(data) {
+      
+    var obj = JSON.parse(data);
+    var status_fil = 0; //0= Tudo OK; 1= Atencao; 2= Falhas
+    var percent = 0;
+    //console.log(obj)
+    
+    if (obj.stredis) { //se banco redis esta online, processo
+      $.each( obj.hosts, function( index, element ) {
+        
+        $('#cargas_'+element.md3id ).html( 'Cargas Pendentes: ' + element.cargasbx );
+
+        if (element.online) {
+          if (element.cargasbx <= 10 ) { // verde
+            $('#corhost_'+element.md3id ).attr( "class", "info-box-icon elevation-1 bg-success" );
+            $('#sthost_'+element.md3id ).html("online, atualizando");
+          } else if (element.cargasbx <= 20 ) { //amarelo
+            $('#corhost_'+element.md3id ).attr( "class", "info-box-icon elevation-1 bg-warning" );
+            $('#sthost_'+element.md3id ).html("online, em atrazo");
+            if (status_fil == 0)
+              status_fil = 1;
+          } else {
+            $('#corhost_'+element.md3id ).attr( "class", "info-box-icon elevation-1 bg-danger" );
+            $('#sthost_'+element.md3id ).html("online, muito atrazado");
+            status_fil = 2;
+          }
+        } else {
+          $('#corhost_'+element.md3id ).attr( "class", "info-box-icon elevation-1 bg-danger" );
+          $('#sthost_'+element.md3id ).html("offline, desatualizado");
+          status_fil = 2;
+        }
+        
+      });
+
+      if (status_fil == 2) {
+        $('#status_fil_02-0101').attr( "class", "badge badge-danger" );
+      } else if (status_fil == 1) {
+        $('#status_fil_02-0101').attr( "class", "badge badge-warning" );
+      } else {
+        $('#status_fil_02-0101').attr( "class", "badge badge-success" );
+      }
+
+    } else { //banco redis offline
+      showMsgPopup("warning", 'Não foi possível conexão com banco de cargas!' );
+    }
+
+    $('.fa-sync-alt').removeClass("fa-spin");
+    $('#btnRefresh').prop("disabled", false);
+  });
+
+}
+
+$(document).ready(function() {
+
+  <% 
+  if len(aHosts) > 1
+  %>
+  //tratamento para ja nascer fechado as janelas de cada filial
+  $('button#fil_min').each(function(index, element) {
+    element.click()
+  });
+  <% 
+  endif
+  %>
+  
+});
+
+</script>

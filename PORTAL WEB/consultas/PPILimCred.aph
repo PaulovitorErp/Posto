@@ -1,0 +1,273 @@
+<%  
+HTTPSESSION->MNUACTIVE := 2.1
+%>
+<%=H_PPIHeader() %>
+<link rel="stylesheet" href="plugins/jquery-ui/jquery-ui.min.css">
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0 text-dark">Consulta Limite de Crédito</h1>
+          </div><!-- /.col -->
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="index.apw">Home</a></li>
+              <li class="breadcrumb-item active">Consultas</li>
+            </ol>
+          </div><!-- /.col -->
+        </div><!-- /.row -->
+      </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+
+    <!-- Main content -->
+    <div class="content">
+      <div class="container-fluid">
+        
+        <!-- FILTROS -->
+        <div class="card card-outline card-primary">
+          <div class="card-header">
+            <h3 class="card-title"><a href="javascript:$('#fil_min').click()">Filtros de busca</a></h3>
+            <div class="card-tools">
+              <button type="button" id="fil_min" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
+              </button>
+            </div>
+            <!-- /.card-tools -->
+          </div>
+          <!-- /.card-header -->
+          <div class="card-body" style="display: block;">
+            <form id="form_filter" method="POST" action="">
+              <div class="row">
+                <div class="col-sm-9 p-2">
+                  <input type="text" class="form-control" id="inputNomCli" placeholder="Nome do Cliente">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-3 p-2">
+                  <input type="text" class="form-control" id="inputCgc" placeholder="CPF/CNPJ Cliente">
+                </div>
+                <div class="col-sm-3 p-2">
+                  <input type="text" class="form-control" id="inputCodCli" placeholder="Cod+Loja Cliente">
+                </div>
+                <div class="col-sm-3 p-2">
+                  <input type="text" class="form-control" id="inputGrupo" placeholder="Grupo Cliente">
+                </div>
+                <div class="col-sm-3 p-2">
+                  <button type="submit" class="btn btn-primary">Buscar</button>
+                  <i id="loader" class="ml-4 fas fa-spinner fa-spin"></i>
+                </div>
+              </div>
+            </form>
+          </div>
+          <!-- /.card-body -->
+        </div>
+
+        <div class="card card-default color-palette-box">
+          <div class="card-body" >
+            <div class="row" >
+              <div class="col-lg-6" id="result">
+              </div>
+              <div class="col-lg-6" id="chartDiv">
+                <div class="chart">
+                  <canvas id="LCRChart" style="min-height: 150px; height: 150px; max-height: 150px; max-width: 100%; display: block; width: 487px;" width="487" height="150"></canvas>
+                </div>
+                <div class="chart">
+                  <canvas id="LCSChart" style="min-height: 150px; height: 150px; max-height: 150px; max-width: 100%; display: block; width: 487px;" width="487" height="150"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- /.card-body -->
+        </div>
+        <!-- /.card -->
+
+      </div>
+      <!-- /.container-fluid -->
+    </div>
+    <!-- /.content -->
+  </div>
+  <!-- /.content-wrapper -->
+
+<%=H_PPIFooter() %>
+
+<!-- ChartJS -->
+<script src="plugins/chart.js/Chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/emn178/chartjs-plugin-labels/src/chartjs-plugin-labels.js"></script> 
+
+<script>
+
+var cGrpCli = '';
+function verGrupo() {
+  $('#fil_min').click();
+  $('#inputGrupo').val(cGrpCli);
+  $('#form_filter').submit();
+}
+
+$(document).ready(function() {
+  $('#loader').hide();
+
+  $( "#inputNomCli" ).autocomplete({
+    source: "busca_cliente.apw",
+    minLength: 3,
+    select: function( event, ui ) {
+      $( "#inputCodCli" ).val(ui.item.id)
+    }
+  });
+
+  //-------------
+  //- BAR CHART -
+  //-------------
+  var LCRChartData = {
+    labels  : ['Limite Global'],
+    datasets: [
+      {
+        label               : 'Valor do Limite',
+        backgroundColor     : 'rgba(60,141,188,0.9)',
+        borderColor         : 'rgba(60,141,188,0.8)',
+        data                : [0]
+      },
+      {
+        label               : 'Valor Utilizado',
+        backgroundColor     : 'rgba(210, 214, 222, 1)',
+        borderColor         : 'rgba(210, 214, 222, 1)',
+        data                : [0]
+      },
+    ]
+  }
+
+  var LCRChartCanvas = $('#LCRChart').get(0).getContext('2d')
+  var LCRChartOptions = {
+    responsive              : true,
+    maintainAspectRatio     : false,
+    datasetFill             : false,
+    title: {
+      display: true,
+      text: 'Gráfico da Utilização Limite de Crédito'
+    },
+    legend: {
+      display: false,
+    },
+    tooltips: {
+      mode: 'index',
+      //intersect: false,
+      callbacks: {
+        label: function(tooltipItem, data) {
+          return data.datasets[tooltipItem.datasetIndex].label + ": " + Number(data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]).toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
+        }
+      },
+    },
+    scales: {
+      xAxes: [{
+        ticks: {
+          beginAtZero: true
+        }
+      }]
+    }
+  }
+  var LCRChart = new Chart(LCRChartCanvas, {
+    type: 'horizontalBar', 
+    data: LCRChartData,
+    options: LCRChartOptions
+  })
+
+
+  var LCSChartData = {
+    labels  : ['Limite Saque'],
+    datasets: [
+      {
+        label               : 'Valor do Limite',
+        backgroundColor     : 'rgba(60,141,188,0.9)',
+        borderColor         : 'rgba(60,141,188,0.8)',
+        data                : [0]
+      },
+      {
+        label               : 'Valor Utilizado',
+        backgroundColor     : 'rgba(210, 214, 222, 1)',
+        borderColor         : 'rgba(210, 214, 222, 1)',
+        data                : [0]
+      },
+    ]
+  }
+
+  var LCSChartCanvas = $('#LCSChart').get(0).getContext('2d')
+  var LCSChartOptions = {
+    responsive              : true,
+    maintainAspectRatio     : false,
+    datasetFill             : false,
+    title: {
+      display: false,
+    },
+    legend: {
+      display: true,
+      position: 'bottom'
+    },
+    tooltips: {
+      mode: 'index',
+      //intersect: false,
+      callbacks: {
+        label: function(tooltipItem, data) {
+          return data.datasets[tooltipItem.datasetIndex].label + ": " + Number(data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]).toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
+        }
+      },
+    },
+    scales: {
+      xAxes: [{
+        ticks: {
+          beginAtZero: true
+        }
+      }]
+    }
+  }
+  var LCSChart = new Chart(LCSChartCanvas, {
+    type: 'horizontalBar', 
+    data: LCSChartData,
+    options: LCSChartOptions
+  })
+
+  $('#result').hide();
+  $('#chartDiv').hide();
+
+  $('#form_filter').submit(function(event) {
+    $('#loader').show();
+    $('#result').hide();
+    $('#chartDiv').hide();
+
+    //desabilita acao do form
+    event.preventDefault();	
+    
+    //pegando valores do form
+    var cgc = $('#inputCgc').val();
+    var codcli = $('#inputCodCli').val();
+    var grupo = $('#inputGrupo').val();
+
+    $.post("busca_limite_cred.apw", { cgc: cgc, codcli: codcli, grupo: grupo }, function(data) {
+      
+      cGrpCli = data.vergrupo;
+      $('#result').html(data.textos);
+      $('#result').show();
+
+      if(data.success){
+        $('#chartDiv').show();
+        LCRChartData.datasets[0].data = [data.vlrLimites[0]];
+        LCRChartData.datasets[1].data = [data.limUsado[0]];
+        LCRChart.update();
+        LCSChartData.datasets[0].data = [data.vlrLimites[1]];
+        LCSChartData.datasets[1].data = [data.limUsado[1]];
+        LCSChart.update();
+        $('#fil_min').click();
+      }
+
+      $('#loader').hide();
+      
+    },'json');
+
+    this.reset();
+
+  });
+});
+
+</script>

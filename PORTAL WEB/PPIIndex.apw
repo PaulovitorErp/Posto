@@ -1,0 +1,176 @@
+#include 'protheus.ch'
+#include 'parmtype.ch'
+#include 'topconn.ch'
+
+#DEFINE CRLF chr(13)+chr(10)
+
+/*/{Protheus.doc} User Function PPIIndex
+Retorno dos dados para carregamento no Index
+
+@type  Function
+@author thebritto
+@since 02/04/2020
+@version version
+/*/
+User Function PPIIndex(cRotina)
+
+    Local cReturn := ""
+    Local cQry := ""
+    Local aInfoRet 
+
+    if cRotina == 'venda_dia_comb'
+        
+        aInfoRet := {"","",""} //{cVDCProds, cVDCLitros, cVDCValor}
+
+        cQry += " SELECT L2_PRODUTO, L2_DESCRI, SUM(L2_QUANT) LITROS, SUM(L2_VLRITEM) VALOR "
+        cQry += " FROM " + RetSqlName("SL2") + " SL2 "
+        cQry += " WHERE SL2.D_E_L_E_T_ = ' ' "
+        cQry += " AND L2_EMISSAO = '" + DTOS(dDataBase) + "' "
+        cQry += " AND L2_FILIAL = '" + xFilial("SL2") + "' "
+        cQry += " AND L2_MIDCOD <> '' " //somente de abastecimentos
+        cQry += " GROUP BY L2_PRODUTO, L2_DESCRI "
+        //cQry += " ORDER BY 3 DESC "
+
+        If Select("QRYVDC") > 0
+            QRYVDC->(DbCloseArea())
+        EndIf
+
+        cQry := ChangeQuery(cQry)
+        TcQuery cQry New Alias "QRYVDC" // Cria uma nova area com o resultado do query
+
+        QRYVDC->(dbGoTop())
+        While QRYVDC->(!Eof())
+
+            aInfoRet[1] += "'"+ Capital(Alltrim(SubStr(QRYVDC->L2_DESCRI,1,20))) + "',"
+            aInfoRet[2] += "'"+ cValToChar(iif(Valtype(QRYVDC->LITROS)=="N",QRYVDC->LITROS,0)) + "',"
+            aInfoRet[3] += "'R$ "+ Alltrim(Transform(iif(Valtype(QRYVDC->VALOR)=="N",QRYVDC->VALOR,0),PesqPict("SL1","L1_VLRLIQ") )) + "',"
+
+            QRYVDC->(DbSkip())
+        EndDo
+
+        QRYVDC->(DbCloseArea())
+
+        aInfoRet[1] := SubStr(aInfoRet[1],1,len(aInfoRet[1])-1)
+        aInfoRet[2] := SubStr(aInfoRet[2],1,len(aInfoRet[2])-1)
+        aInfoRet[3] := SubStr(aInfoRet[3],1,len(aInfoRet[3])-1)
+        
+        cReturn += "var aVDCProds = ["+aInfoRet[1]+"];"+CRLF
+        cReturn += "var aVDCLitros = ["+aInfoRet[2]+"];"+CRLF
+        cReturn += "var aVDCValor = ["+aInfoRet[3]+"];"+CRLF
+
+    elseif cRotina == 'venda_dia_geral'
+
+        aInfoRet := {0, 0} //{nTotComb, nTotProds}
+
+        cQry += " SELECT 'COMB' AS TIPO, SUM(L2_VLRITEM) VALOR "
+        cQry += " FROM " + RetSqlName("SL2") + " SL2 "
+        cQry += " WHERE SL2.D_E_L_E_T_ = ' ' "
+        cQry += " AND L2_EMISSAO = '" + DTOS(dDataBase) + "' "
+        cQry += " AND L2_FILIAL = '" + xFilial("SL2") + "' "
+        cQry += " AND L2_MIDCOD <> '' "
+
+        cQry += " UNION "
+
+        cQry += " SELECT 'PROD' AS TIPO, SUM(L2_VLRITEM) VALOR "
+        cQry += " FROM " + RetSqlName("SL2") + " SL2 "
+        cQry += " WHERE SL2.D_E_L_E_T_ = ' ' "
+        cQry += " AND L2_EMISSAO = '" + DTOS(dDataBase) + "' "
+        cQry += " AND L2_FILIAL = '" + xFilial("SL2") + "' "
+        cQry += " AND L2_MIDCOD = '' "
+
+        If Select("QRYVDG") > 0
+            QRYVDG->(DbCloseArea())
+        EndIf
+
+        cQry := ChangeQuery(cQry)
+        TcQuery cQry New Alias "QRYVDG" // Cria uma nova area com o resultado do query
+
+        QRYVDG->(dbGoTop())
+        While QRYVDG->(!Eof())
+
+            if QRYVDG->TIPO == "COMB"
+                aInfoRet[1] += iif(Valtype(QRYVDG->VALOR)=="N",QRYVDG->VALOR,0)
+            else
+                aInfoRet[2] += iif(Valtype(QRYVDG->VALOR)=="N",QRYVDG->VALOR,0)
+            endif
+
+            QRYVDG->(DbSkip())
+        EndDo
+
+        QRYVDG->(DbCloseArea())
+
+        cReturn += "var aVDGProds = ['Combustíveis', 'Outros Produtos'];"+CRLF
+        cReturn += "var aVDGValor = ["+cValToChar(aInfoRet[1])+","+cValToChar(aInfoRet[2])+"];"+CRLF
+    
+    elseif cRotina == 'evolucao_vendas'
+
+        aInfoRet := {"","","",""} //{cEVDDates, cEVDValues, cEVDValComb, aEVDValProd}
+
+        cQry += " SELECT L2_EMISSAO, 'COMB' AS TIPO, SUM(L2_VLRITEM) VALOR "
+        cQry += " FROM " + RetSqlName("SL2") + " SL2 "
+        cQry += " WHERE SL2.D_E_L_E_T_ = ' ' "
+        cQry += " AND L2_EMISSAO >= '" + DTOS(dDataBase-6) + "' "
+        cQry += " AND L2_FILIAL = '" + xFilial("SL2") + "' "
+        cQry += " AND L2_MIDCOD <> '' "
+        cQry += " GROUP BY L2_EMISSAO "
+
+        cQry += " UNION "
+        
+        cQry += " SELECT L2_EMISSAO, 'PROD' AS TIPO, SUM(L2_VLRITEM) VALOR "
+        cQry += " FROM " + RetSqlName("SL2") + " SL2 "
+        cQry += " WHERE SL2.D_E_L_E_T_ = ' ' "
+        cQry += " AND L2_EMISSAO >= '" + DTOS(dDataBase-6) + "' "
+        cQry += " AND L2_FILIAL = '" + xFilial("SL2") + "' "
+        cQry += " AND L2_MIDCOD = '' "
+        cQry += " GROUP BY L2_EMISSAO "
+
+        cQry += " ORDER BY 1, 2 "
+
+        If Select("QRYEVD") > 0
+            QRYEVD->(DbCloseArea())
+        EndIf
+
+        cQry := ChangeQuery(cQry)
+        TcQuery cQry New Alias "QRYEVD" // Cria uma nova area com o resultado do query
+
+        nVlrComb := 0
+        nVlrProd := 0
+        nVlrTot  := 0
+        cDateAtu := ""
+        QRYEVD->(dbGoTop())
+        While QRYEVD->(!Eof())
+
+            cDateAtu := iif(ValType(QRYEVD->L2_EMISSAO)=="D",DTOS(QRYEVD->L2_EMISSAO),QRYEVD->L2_EMISSAO)
+
+            if QRYEVD->TIPO == "PROD"
+                nVlrProd += iif(Valtype(QRYEVD->VALOR)=="N",QRYEVD->VALOR,0)
+            else
+                nVlrComb += iif(Valtype(QRYEVD->VALOR)=="N",QRYEVD->VALOR,0)
+            endif
+            nVlrTot  += iif(Valtype(QRYEVD->VALOR)=="N",QRYEVD->VALOR,0)
+
+            QRYEVD->(DbSkip())
+
+            //se mudou data, imprimo total
+            if QRYEVD->(Eof()) .OR. cDateAtu <> iif(ValType(QRYEVD->L2_EMISSAO)=="D",DTOS(QRYEVD->L2_EMISSAO),QRYEVD->L2_EMISSAO)
+                aInfoRet[1] += "'"+ cValToChar(Day(STOD(cDateAtu)))+"/"+Capital(SubStr(MesExtenso(Month(STOD(cDateAtu))),1,3)) + "',"
+                aInfoRet[2] += "'"+ cValToChar(nVlrTot) + "',"
+                aInfoRet[3] += "'"+ cValToChar(nVlrComb) + "',"
+                aInfoRet[4] += "'"+ cValToChar(nVlrProd) + "',"
+
+                nVlrComb := 0
+                nVlrProd := 0
+                nVlrTot  := 0
+            endif
+        EndDo
+
+        QRYEVD->(DbCloseArea())
+
+        cReturn += "var aEVDDates = ["+aInfoRet[1]+"];"+CRLF
+        cReturn += "var aEVDValues = ["+aInfoRet[2]+"];"+CRLF
+        cReturn += "var aEVDValComb = ["+aInfoRet[3]+"];"+CRLF
+        cReturn += "var aEVDValProd = ["+aInfoRet[4]+"];"+CRLF
+
+    endif
+    
+Return cReturn

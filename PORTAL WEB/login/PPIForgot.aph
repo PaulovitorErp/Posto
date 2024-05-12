@@ -1,0 +1,67 @@
+<%=H_PPILgHead() %>
+
+<div class="login-box">
+  <div class="login-logo">
+    <img width="250" src="dist/img/logo-cli.png" alt="Nome do Cliente">
+  </div>
+  <!-- /.login-logo -->
+  <div class="card">
+    <div class="card-body login-card-body">
+      <p class="login-box-msg"><strong>Recuperar Senha</strong></p>
+      <p class="login-box-msg">Informe seu endereço de email para receber uma nova senha.</p>
+
+      <form id="form_recovery" method="POST" action="">
+        <div class="input-group mb-3">
+          <input class="form-control py-4" id="inputEmailAddress" type="email" placeholder="endereço de email" autocomplete="off" required="required" />
+          <div class="input-group-append">
+            <div class="input-group-text">
+              <span class="fas fa-envelope"></span>
+            </div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary btn-block">Recuperar Senha</button>
+          </div>
+          <!-- /.col -->
+        </div>
+        <div id="returnOk" class="text-sm text-success"></div>
+        <div id="return" class="text-sm text-danger"></div>
+      </form>
+      <p class="mt-5 mb-1">
+        <a href="login.apw">Voltar para login</a>
+      </p>
+      <i id="loader" class="toasts-bottom-right mb-4 mr-4 fas fa-2x fa-spinner fa-spin"></i>
+    </div>
+    <!-- /.login-card-body -->
+  </div>
+</div>
+<!-- /.login-box -->
+
+<%=H_PPILgFooter() %>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    $('#loader').hide();
+    $('#form_recovery').submit(function(event) {
+        $('#loader').show();
+
+        //desabilita acao do form
+        event.preventDefault();				
+        
+        //pegando valores do form
+        var email = $('#inputEmailAddress').val();
+                        
+        $.post("confirma_forgot.apw", { email: email }, function(data) {
+            if (data == true){
+                $('#return').html('');
+                $('#returnOk').html("Senha enviada com sucesso para "+email);
+                $('#loader').hide();
+            }else {
+                $('#return').html(data);
+                $('#loader').hide();
+            }
+        });
+    });
+});
+</script>

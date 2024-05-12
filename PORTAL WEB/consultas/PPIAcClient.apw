@@ -1,0 +1,67 @@
+#include 'protheus.ch'
+#include 'parmtype.ch'
+#include 'topconn.ch'
+
+/*/{Protheus.doc} User Function PPILimCred
+Carrega lista de clientes na consulta do AutoComplete
+
+@type  Function
+@author thebritto
+@since 08/12/2020
+@version version
+/*/
+User Function PPIAcClient()
+
+    Local nCount := 0
+    Local cReturn := ""
+    Local cQry := ""
+    Local cBusca := HTTPGET->term 
+    Local cSGBD 	 	:= Upper(AllTrim(TcGetDB()))	// Guarda Gerenciador de banco de dados
+
+    cReturn += "["
+
+    If "ORACLE" $ cSGBD //Oracle 
+        cQry += " SELECT "
+    else
+        cQry += " SELECT TOP 15 "
+    endif
+    cQry += " A1_NOME, A1_COD, A1_LOJA, A1_EST, A1_CGC "
+    cQry += " FROM " + RetSqlName("SA1") + " SA1 "
+    cQry += " WHERE SA1.D_E_L_E_T_ = ' ' "
+    cQry += " AND A1_FILIAL = '" + xFilial("SA1") + "' "
+
+    //se os 3 primeiros caracteres são numerico, busco por CGC
+    if SubStr(cBusca,1,1) $ "0123456789" .AND. SubStr(cBusca,2,1) $ "0123456789" .AND. SubStr(cBusca,3,1) $ "0123456789"
+        cQry += " AND A1_CGC LIKE '"+Alltrim(cBusca)+"%' "
+    else
+        cQry += " AND A1_NOME LIKE '"+Alltrim(Upper(cBusca))+"%' "
+    endif
+    If "ORACLE" $ cSGBD //Oracle 
+        cQry += " AND ROWNUM <= 15"
+    endif
+    cQry += " ORDER BY A1_NOME "
+
+    If Select("QRYCLI") > 0
+        QRYCLI->(DbCloseArea())
+    EndIf
+
+    cQry := ChangeQuery(cQry)
+    TcQuery cQry New Alias "QRYCLI" // Cria uma nova area com o resultado do query
+
+    QRYCLI->(dbGoTop())
+    While QRYCLI->(!Eof())
+
+        if nCount > 0
+            cReturn += ','
+        endif
+        cReturn += '{"value":"'+Alltrim(QRYCLI->A1_NOME)+'","label":"'+Alltrim(QRYCLI->A1_NOME)+' | '+Alltrim(QRYCLI->A1_CGC)+' | '+Alltrim(QRYCLI->A1_EST)+'","id":"'+QRYCLI->A1_COD+QRYCLI->A1_LOJA+'"}'
+        nCount++
+
+        QRYCLI->(DbSkip())
+    EndDo
+
+    QRYCLI->(DbCloseArea())
+
+    cReturn += "]"
+
+Return cReturn

@@ -1,0 +1,70 @@
+/*/{Protheus.doc} User Function PPILogin
+Faz o Login do usuario e sua sessão
+
+@type  Function
+@author thebritto
+@since 02/04/2020
+@version version
+/*/
+User Function PPILogin()
+
+    Local aPswRet, cCod, nLen
+    Local cReturn := ''
+    
+    If HTTPPOST->USER != NIL .and. HTTPPOST->PASSWORD != NIL .and. HTTPPOST->FILIAL != NIL
+
+        //cGrpEmp é private em ASPCONTR
+        RPCSetType(3)  // Nao comer licensa
+        RpcClearEnv()
+        if RpcSetEnv(cGrpEmp, HTTPPOST->FILIAL, HTTPPOST->USER, HTTPPOST->PASSWORD,"ESP")
+
+            PswOrder(2) //Nome do Usuario
+            If !(PswSeek(AllTrim(HTTPPOST->USER),.T.) .And. PswName(AllTrim(HTTPPOST->PASSWORD)))
+                cReturn := "Usuario ou senha invalidos"
+            else
+                aPswRet := PswRet()
+                cCod	:= aPswRet[1,1]
+
+                If aPswRet[1][17] = .T.
+                    cReturn := "Usuário bloqueado!"
+                elseif !Empty(aPswRet[1][6]) .AND. DTOC(aPswRet[1][6]) < DTOC(MsDate())
+                    cReturn := "Senha Expirada!"
+                else
+                    nLen 	:= Len(AllTrim(cEmpAnt + cFilAnt))
+                    If Len(aPswRet) >= 2 .AND. aScan(aPswRet[2][6], {|x| x == "@@@@"}) == 0 //Se nao tiver acesso a todas filiais, verifica a filial logada
+                        If (aScan(aPswRet[2][6], {|x| Substr(x,1,nLen) == Trim(cEmpAnt + cFilAnt) }) == 0) .AND. (aScan(aPswRet[2][6], {|x| AllTrim(x) == AllTrim(cEmpAnt) }) == 0)
+                            cReturn := "Usuário sem acesso à Empresa/Filial!"
+                        Endif
+                    Endif
+                endif
+            endif
+
+            if empty(cReturn)
+                // Usuário logado com sucesso 
+                // Alimenta a sessions 
+                HTTPSESSION->LOGIN := HTTPPOST->USER
+                HTTPSESSION->USRPSW := HTTPPOST->PASSWORD
+                HTTPSESSION->USRNAME := AllTrim(UsrFullName(HTTPPOST->USER))
+                HTTPSESSION->CEMPANT := cEmpAnt
+                HTTPSESSION->CFILANT := cFilAnt
+                HTTPSESSION->AFILUSR := aPswRet
+                HTTPSESSION->MNUACTIVE := '0'
+                HTTPSESSION->MSGTYPE := '' //success, warning, info, danger
+                HTTPSESSION->MSGTEXT := '' //texto da mensagem
+
+                cReturn := '1' //retorno de sucesso
+            else
+                //encerro a conexao da empresa
+                RpcClearEnv()
+            endif
+
+        Else
+            // retorna mensagem de erro
+            cReturn := "Usuario ou senha invalidos"
+        endif
+
+    Else
+        cReturn := "Falha ao obter dados do formulario de login."
+    Endif
+
+Return cReturn

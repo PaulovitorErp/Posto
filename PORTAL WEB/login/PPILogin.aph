@@ -1,0 +1,89 @@
+<%
+Local nX, aFiliais
+%>
+<%=H_PPILgHead() %>
+
+<div class="login-box">
+  <div class="login-logo">
+    <img width="250" src="dist/img/logo-cli.png" alt="Nome do Cliente">
+  </div>
+  <!-- /.login-logo -->
+  <div class="card">
+    <div class="card-body login-card-body">
+      <p class="login-box-msg">Painel Posto Inteligente</p>
+
+      <form id="form_login" method="POST" action="">
+        <div class="input-group mb-3">
+          <input class="form-control py-4" id="inputLogin" type="text" placeholder="login do usuário" autocomplete="off" required="required" />
+          <div class="input-group-append">
+            <div class="input-group-text">
+              <span class="fas fa-user"></span>
+            </div>
+          </div>
+        </div>
+        <div class="input-group mb-3">
+          <input class="form-control py-4" id="inputPassword" type="password" placeholder="entre com a senha" autocomplete="off" required="required" />
+          <div class="input-group-append">
+            <div class="input-group-text">
+              <span class="fas fa-key"></span>
+            </div>
+          </div>
+        </div>
+        <div class="form-group mb-3">
+          <label class="mb-1" for="inputFilial">Filial</label>
+          <select class="form-control mr-3" name="inputFilial" id="inputFilial" required="required">
+            <option value=""></option> 
+
+            <% 
+            aFiliais := U_AspGetFil()
+            for nX:=1 to len(aFiliais) 
+            %>
+            <%= '<option value="' + aFiliais[nX][1] + '">' + aFiliais[nX][2] + '</option>' %>
+            <% 
+            next nX
+            %>
+
+          </select>
+        </div>
+        <div class="input-group mb-3">
+          <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+        </div>
+        <div id="return" class="text-sm text-danger"></div>
+      </form>
+      <p class="mt-5 mb-1">
+        <a href="forgot-password.apw">Esqueceu a sua Senha?</a>
+      </p>
+      <i id="loader" class="toasts-bottom-right mb-4 mr-4 fas fa-2x fa-spinner fa-spin"></i>
+    </div>
+    <!-- /.login-card-body -->
+  </div>
+</div>
+<!-- /.login-box -->
+
+<%=H_PPILgFooter() %>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    $('#loader').hide();
+    $('#form_login').submit(function(event) {
+        $('#loader').show();
+
+        //desabilita acao do form
+        event.preventDefault();				
+        
+        //pegando valores do form
+        var user = $('#inputLogin').val();
+        var password = $('#inputPassword').val();
+        var filial = $('#inputFilial').val();
+
+        $.post("confirma_login.apw", { user: user, password: password, filial: filial }, function(data) {
+            if (data == true){
+                location.href="<%= iif(HTTPSESSION->PAGE_REQUEST=='login','index',HTTPSESSION->PAGE_REQUEST) %>.apw";
+            }else {
+                $('#return').html(data);
+                $('#loader').hide();
+            }
+        });
+    });
+});
+</script>

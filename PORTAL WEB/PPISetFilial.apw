@@ -1,0 +1,42 @@
+/*/{Protheus.doc} User Function PPISetFilial
+Faz troca da filial logada
+
+@type  Function
+@author thebritto
+@since 02/04/2020
+@version version
+/*/
+User Function PPISetFilial()
+    
+    Local aPswRet, nLen
+    Local lOk := .T.
+
+    PswOrder(2) //Nome do Usuario
+    PswSeek(AllTrim(HTTPSESSION->LOGIN),.T.)
+    aPswRet := PswRet()
+    nLen 	:= Len(AllTrim(cEmpAnt + cFilAnt))
+    If Len(aPswRet) >= 2 .AND. aScan(aPswRet[2][6], {|x| x == "@@@@"}) == 0 //Se nao tiver acesso a todas filiais, verifica a filial logada
+        If (aScan(aPswRet[2][6], {|x| Substr(x,1,nLen) == Trim(cEmpAnt + HTTPGET->CFIL) }) == 0) .AND. (aScan(aPswRet[2][6], {|x| AllTrim(x) == AllTrim(cEmpAnt) }) == 0)
+            HTTPSESSION->MSGTYPE := 'danger'
+            HTTPSESSION->MSGTEXT := "Usuário sem acesso à Empresa/Filial!"
+            lOk := .F.
+        Endif
+    Endif
+
+    if lOk
+        RPCSetType(3)  // Nao comer licensa
+        RpcClearEnv()
+        if RpcSetEnv(HTTPSESSION->CEMPANT,  HTTPGET->CFIL, HTTPSESSION->LOGIN, HTTPSESSION->USRPSW,"ESP")
+            HTTPSESSION->CFILANT := HTTPGET->CFIL
+            HTTPSESSION->MSGTYPE := 'success'
+            HTTPSESSION->MSGTEXT := 'Filial alternada com sucesso!'
+        else
+            HTTPSESSION->MSGTYPE := 'danger'
+            HTTPSESSION->MSGTEXT := 'Falha ao alternar filial!'
+        endif
+    endif
+
+    HTTPSRCODE(307,"Logout Redirection")
+    HTTPHEADOUT->Location := "/index.apw"
+
+Return ""

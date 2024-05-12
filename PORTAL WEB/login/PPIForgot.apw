@@ -1,0 +1,20 @@
+/*/{Protheus.doc} User Function PPIForgot
+Faz recuperar senha
+
+@type  Function
+@author thebritto
+@since 02/04/2020
+@version version
+/*/
+User Function PPIForgot()
+
+    If HTTPPOST->email != NIL
+
+        //TODO: fazer tratamento de recuperar senha aqui
+
+        cReturn := '1' //retorno de sucesso
+    Else
+        cReturn := "Falha ao obter dados do formulario de forgot."
+    Endif
+
+Return cReturn

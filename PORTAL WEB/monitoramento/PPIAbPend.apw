@@ -1,0 +1,125 @@
+Static oWsdl
+
+/*/{Protheus.doc} User Function PPIAbPend
+Carrega lista de abastecimentos pendentes
+
+@type  Function
+@author thebritto
+@since 02/04/2020
+@version version
+/*/
+User Function PPIAbPend()
+
+    Local cFilBico := "", cFilVend := ""
+    Local cHtml := ""
+    Local cUrlWSDL := SuperGetMv("PPI_WSPOST",,"")
+    Local xRet, cXml, nX, oAux
+    Local cAviso := "", cErro := ""
+    Local aAbastPen
+
+    if empty(cUrlWSDL)
+        cHtml := "Parametro de URL do host de leitura nao configurado. Parameto: PPI_WSPOST - url do WSDL de comunicacao com a central."
+        Return '{"result":"erro", "dataReturn":[], "message":"'+cHtml+'"}'
+    endif
+
+    if HTTPPOST->BICO <> Nil
+        cFilBico := Upper(Alltrim(HTTPPOST->BICO))
+    endif
+    if HTTPPOST->VENDEDOR <> Nil
+        cFilVend := Upper(Alltrim(HTTPPOST->VENDEDOR))
+    endif
+
+    if oWsdl == Nil
+        // Cria o objeto da classe TWsdlManager
+        oWsdl := TWsdlManager():New()
+
+        // SETA O MODO DE TRABALHO DA CLASSE PARA "VERBOSE"
+        oWsdl:lVerbose := .T.
+        oWsdl:bNoCheckPeerCert := .T. // Desabilita o check de CAs
+        oWsdl:lSSLInsecure := .T. //Define se fará a conexão SSL com o servidor de forma anônima, ou seja, sem verificação de certificados ou chaves.
+    endif
+
+	// Faz o parse de uma URL
+	xRet := oWsdl:ParseURL( cUrlWSDL )
+	if xRet == .F.
+        cHtml := 'Falha ao abrir WSDL (ParseURL). Erro: ' + oWsdl:cError  // NÃO realizado o parse com sucesso
+        Return '{"result":"erro", "dataReturn":[], "message":"'+cHtml+'"}'
+	endif
+
+	// Define a operação
+	xRet := oWsdl:SetOperation( "GETABASTPEND" ) 
+	if xRet == .F.
+        cHtml := 'Falha ao setar operação GETABASTPEND' 
+        Return '{"result":"erro", "dataReturn":[], "message":"'+cHtml+'"}'
+	endif
+
+    cXml := '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns="http://0101.rfs7.com:5002/">'
+    cXml += '<soapenv:Body>'
+    cXml += '    <GETABASTPEND>'
+    cXml += '        <ENV_ABSPEND>'
+    cXml += '            <CEMP>'+HTTPSESSION->CEMPANT+'</CEMP>'
+    cXml += '            <CFIL>'+HTTPSESSION->CFILANT+'</CFIL>'
+    cXml += '            <CBICO>'+cFilBico+'</CBICO>'
+    cXml += '            <CVENDEDOR>'+cFilVend+'</CVENDEDOR>'
+    cXml += '        </ENV_ABSPEND>'
+    cXml += '    </GETABASTPEND>'
+    cXml += '</soapenv:Body>'
+    cXml += '</soapenv:Envelope>'
+
+    // Envia a mensagem SOAP de requição ao servidor
+    //Conout("PPIAbPend: antes envio xml - " + Time())
+	xRet := oWsdl:SendSoapMsg(cXml)
+    //Conout("PPIAbPend: depois envio xml - " + Time())
+	if xRet == .F.
+        cHtml := 'Falha no envio da mensagem xml' 
+        Return cHtml
+    else
+		// obtenho o retorno do Web Services
+		xRet := oWsdl:GetSoapResponse()
+		xRet := XmlParser(xRet, "_", @cAviso,@cErro)
+        
+        //verificando tags
+        if (oAux := XmlChildEx(xRet,"_SOAP_ENVELOPE"))!=Nil .AND. ;
+            (oAux := XmlChildEx(oAux,"_SOAP_BODY"))!=Nil .AND. ;
+            (oAux := XmlChildEx(oAux,"_GETABASTPENDRESPONSE"))!=Nil .AND. ;
+            (oAux := XmlChildEx(oAux,"_GETABASTPENDRESULT"))!=Nil .AND. ;
+            (oAux := XmlChildEx(oAux,"_AABASTPEN"))!=Nil .AND. ;
+            XmlChildEx(oAux,"_ABASTPEN")!=Nil
+            
+            aAbastPen := xRet:_SOAP_ENVELOPE:_SOAP_BODY:_GETABASTPENDRESPONSE:_GETABASTPENDRESULT:_AABASTPEN:_ABASTPEN
+            If VALTYPE(aAbastPen) != "A"
+                aAbastPen := {aAbastPen}
+            Endif
+        
+            //Preparando retorno formato JSON
+            cHtml += '{"result":"OK", "dataReturn": ['
+
+            for nX := 1 to len(aAbastPen)
+                if nX > 1
+                    cHtml += ','
+                endif
+                cHtml += '['
+                cHtml += '"'+aAbastPen[nX]:_CDESTACA:TEXT+'",'
+                cHtml += '"'+aAbastPen[nX]:_CBICO:TEXT+'",'
+                cHtml += '"'+DTOC(STOD(aAbastPen[nX]:_CDATA:TEXT))+'",'
+                cHtml += '"'+aAbastPen[nX]:_CHORA:TEXT+'",'
+                cHtml += '"'+aAbastPen[nX]:_CPRODUTO:TEXT+'",'
+                cHtml += '"'+Alltrim(Transform(Val(aAbastPen[nX]:_NQTD:TEXT), "@E 999,999.999" ))+'",'
+                cHtml += '"'+Alltrim(Transform(Val(aAbastPen[nX]:_NVLRUNIT:TEXT), "@E 99,999,999.999" ))+'",'
+                cHtml += '"'+Alltrim(Transform(Val(aAbastPen[nX]:_NVLRTOT:TEXT), "@E 99,999,999.99" ))+'",'
+                cHtml += '"'+Alltrim(Transform(Val(aAbastPen[nX]:_NENCERR:TEXT), "@E 99,999,999,999.999" ))+'",'
+                cHtml += '"'+aAbastPen[nX]:_CVENDEDOR:TEXT+'"'
+                cHtml += ']'
+            next nX
+
+            cHtml += '], "message":""}'
+        else
+            //Preparando retorno formato JSON
+            cHtml += '{"result":"OK", "dataReturn": [], "message":"sem registros"}'
+        endif
+
+	endif
+
+	//FreeObj(oWsdl)
+
+Return cHtml

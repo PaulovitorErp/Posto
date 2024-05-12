@@ -1,0 +1,64 @@
+<!-- Main Footer -->
+  <footer class="main-footer text-sm">
+    <%=Alltrim(FWFilialName()) + " | " + HTTPSESSION->LOGIN %>
+    <div class="float-right d-none d-sm-inline-block">
+      Totvs Brasil Central
+    </div>
+  </footer>
+</div>
+<!-- ./wrapper -->
+
+<!-- REQUIRED SCRIPTS -->
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- jQuery UI 1.11.4 -->
+<script src="plugins/jquery-ui/jquery-ui.min.js"></script>
+<!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->
+<script>
+  $.widget.bridge('uibutton', $.ui.button)
+</script>
+<!-- Bootstrap -->
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<!-- overlayScrollbars -->
+<script src="plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js"></script>
+<!-- AdminLTE -->
+<script src="dist/js/adminlte.js"></script>
+<!-- AdminLTE dashboard demo (This is only for demo purposes) -->
+<script src="dist/js/dashboard.js"></script>
+
+<script type="text/javascript">
+
+function showMsgPopup(cType, cMsg) {
+  var cHtmlMsgType = '';
+  if (cType == 'success')
+     cHtmlMsgType = '<h5><i class="icon fas fa-check"></i> Sucesso!</h5>';
+  else if (cType == 'warning') 
+      cHtmlMsgType = '<h5><i class="icon fas fa-exclamation-triangle"></i> Atenção!</h5>';
+  else if (cType == 'info') 
+      cHtmlMsgType = '<h5><i class="icon fas fa-info"></i> Informação!</h5>';
+  else if (cType == 'danger') 
+      cHtmlMsgType = '<h5><i class="icon fas fa-ban"></i> Falha!</h5>';
+  cType = 'alert-'+cType;
+  $("#alertMsgText").html(cHtmlMsgType+cMsg);
+  $("#showmsg").addClass(cType);
+  $("#showmsg").fadeIn("fast").delay(5000).fadeOut("fast",function() {
+    $("#showmsg").removeClass(cType);
+  });
+}
+
+<% 
+//Comando que faz mostrar a mensagem e sumir depois de N segundos
+if (HTTPSESSION->MSGTEXT <> Nil .AND. HTTPSESSION->MSGTEXT!='')
+%>
+<%= 'showMsgPopup("'+HTTPSESSION->MSGTYPE+'", "'+HTTPSESSION->MSGTEXT+'");' %>
+<% 
+  HTTPSESSION->MSGTYPE := ''
+  HTTPSESSION->MSGTEXT := ''
+endif
+%>
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,257 @@
+<%  
+HTTPSESSION->MNUACTIVE := 2.2
+%>
+<%=H_PPIHeader() %>
+<link rel="stylesheet" href="plugins/jquery-ui/jquery-ui.min.css">
+
+<style>
+  @media (min-width: 200px) {
+    #dataTablePrcNeg {
+      width: 100%;
+      white-space: nowrap;
+      font-size: 0.8rem;
+    }
+  }
+  @media (min-width: 992px) {
+    #dataTablePrcNeg {
+      width: 100%;
+      white-space: nowrap;
+      font-size: 0.95rem;
+    }
+  }
+  .dataTables_wrapper .row {
+    margin: 0px !important;
+  }
+  .dataTables_wrapper .row .col-sm-12{
+    padding: 0px !important;
+  }
+</style>
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0 text-dark">Consulta Preço / Negociações</h1>
+          </div><!-- /.col -->
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="index.apw">Home</a></li>
+              <li class="breadcrumb-item active">Consultas</li>
+            </ol>
+          </div><!-- /.col -->
+        </div><!-- /.row -->
+      </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+
+    <!-- Main content -->
+    <div class="content">
+      <div class="container-fluid">
+
+        <!-- FILTROS -->
+        <div class="card card-outline card-primary">
+          <div class="card-header">
+            <h3 class="card-title"><a href="javascript:$('#fil_min').click()">Filtros de busca</a></h3>
+            <div class="card-tools">
+              <button type="button" id="fil_min" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i>
+              </button>
+            </div>
+            <!-- /.card-tools -->
+          </div>
+          <!-- /.card-header -->
+          <div class="card-body" style="display: block;">
+            <form id="form_filter" method="POST" action="">
+              <div class="row">
+                <div class="col-sm-6 p-2">
+                  <input type="text" class="form-control" id="inputDesProd" placeholder="Descrição Produto">
+                </div>
+                <div class="col-sm-3 p-2">
+                  <input type="text" class="form-control" id="inputCodProd" placeholder="Codigo Produto">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-9 p-2">
+                  <input type="text" class="form-control" id="inputNomCli" placeholder="Nome do Cliente">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-3 p-2">
+                  <input type="text" class="form-control" id="inputCgc" placeholder="CPF/CNPJ Cliente">
+                </div>
+                <div class="col-sm-3 p-2">
+                  <input type="text" class="form-control" id="inputCodCli" placeholder="Cod+Loja Cliente">
+                </div>
+                <div class="col-sm-3 p-2">
+                  <input type="text" class="form-control" id="inputGrupo" placeholder="Grupo Cliente">
+                </div>
+                <div class="col-sm-3 p-2">
+                  <button type="submit" class="btn btn-primary">Buscar</button>
+                  <i id="loader" class="ml-4 fas fa-spinner fa-spin"></i>
+                </div>
+              </div>
+            </form>
+          </div>
+          <!-- /.card-body -->
+        </div>
+
+        <div class="card card-default color-palette-box">
+          <div class="card-header ">
+            <h2 class="card-title"><b>Resultado da Busca</b></h2>
+          </div>
+
+          <div class="card-body p-0" id="table_body">
+
+            <div class="table-responsive" style="height: 100%;">
+              <table class="table table-head-fixed table-bordered table-striped table-sm" id="dataTablePrcNeg" style="margin: 0px !important;">
+                <thead>
+                    <tr>
+                      <th style="min-width: 80px;">Produto</th>
+                      <th style="min-width: 200px;">Descrição</th>
+                      <th style="min-width: 60px;">Preço Base/Tabela</th>
+                      <th style="min-width: 60px;">Preço Negociado</th>
+                      <th style="min-width: 150px;">Negociação</th>
+                      <th style="min-width: 150px;">Cliente</th>
+                      <th style="min-width: 150px;">Grupo</th>
+                      <th style="min-width: 100px;">Adm. Fin.</th>
+                  </tr>
+                </thead>
+                
+              </table>
+            </div>
+
+          </div>
+          <!-- /.card-body -->
+          <div class="card-footer p-2 text-sm">
+            <span id="count_reg">0</span> registros encontrados
+          </div>
+        </div>
+        <!-- /.card -->
+
+      </div>
+      <!-- /.container-fluid -->
+    </div>
+    <!-- /.content -->
+  </div>
+  <!-- /.content-wrapper -->
+
+<%=H_PPIFooter() %>
+
+<!-- DataTables -->
+<script src="plugins/datatables/jquery.dataTables.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.js"></script>
+
+<script>
+
+var cGrpCli = '';
+function verGrupo() {
+  $('#fil_min').click();
+  $('#inputGrupo').val(cGrpCli);
+  $('#form_filter').submit();
+}
+
+//datatables
+var table = $('#dataTablePrcNeg').DataTable({ 
+  "ajax": {  
+      "url": "busca_preco_neg.apw",
+      "cache": false,
+      "type" : 'post',
+      "datatype": "json",
+      "data": function(d){
+        d.codprod = $("#inputCodProd").val();
+        d.cgc = $("#inputCgc").val();
+        d.codcli = $("#inputCodCli").val();
+        d.grupo = $("#inputGrupo").val();
+      },
+      "beforeSend": function() {
+        $('#loader').show();
+      },
+      "complete": function() {
+        $('#loader').hide();
+        $('#count_reg').html( table.column(0).data().length );
+      },
+      "dataSrc": function (data) {
+        if (data.result == "OK"){
+          return data.dataReturn;
+        }else{
+          showMsgPopup("warning", data.message );
+          return data.dataReturn;
+        }                           
+      } 
+  },
+  "columnDefs":  
+    [{ //alinhamento colunas numericas
+      "targets": [2,3], 
+      className: "text-right"
+    }],
+  "paging": false,
+  "lengthChange": true,
+  "searching": false,
+  "ordering": true,
+  "info": false,
+  "autoWidth": false,
+  "order": [[ 0, "asc" ]], //ordenacao inicia: hora
+  "language": {
+      "decimal":        "",
+      "emptyTable":     "Nenhum registro encontrado",
+      "info":           "Mostrando _START_ a _END_ de _TOTAL_ registros",
+      "infoEmpty":      "Mostrando 0 a 0 de 0 registros",
+      "infoFiltered":   "(filtrado de _MAX_ registros totais)",
+      "infoPostFix":    "",
+      "thousands":      ",",
+      "lengthMenu":     "Mostrar _MENU_ registros",
+      "loadingRecords": "Carregando...",
+      "processing":     "Processando...",
+      "search":         "Buscar:",
+      "zeroRecords":    "Nenhum registro encontrado",
+      "paginate": {
+          "first":      "Primeiro",
+          "last":       "Último",
+          "next":       "Próximo",
+          "previous":   "Anterior"
+      }
+  }
+});
+
+//faz refresh no grid buscando no host
+function refreshGd() {
+  //chamo ajax da datatable
+  table.ajax.reload();
+}
+
+$(document).ready(function() {
+  $('#loader').hide();
+
+  $( "#inputNomCli" ).autocomplete({
+    source: "busca_cliente.apw",
+    minLength: 3,
+    select: function( event, ui ) {
+      $( "#inputCodCli" ).val(ui.item.id)
+    }
+  });
+
+  $( "#inputDesProd" ).autocomplete({
+    source: "busca_produto.apw",
+    minLength: 3,
+    select: function( event, ui ) {
+      $( "#inputCodProd" ).val(ui.item.id)
+    }
+  });
+
+  $('#table_body').css({
+      'height' : $('aside').outerHeight() - 290 + 'px'
+  });
+  $(".table-responsive").overlayScrollbars({ scrollbars : {autoHide : "leave"}});
+
+  $('#form_filter').submit(function(event) {
+    //desabilita acao do form
+    event.preventDefault();	
+    refreshGd();
+    this.reset();
+    $('#fil_min').click();
+  });
+});
+
+</script>

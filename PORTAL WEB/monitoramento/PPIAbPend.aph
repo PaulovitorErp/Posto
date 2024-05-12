@@ -1,0 +1,242 @@
+<%  
+//parametro para definir o tempo de refresh de abastecimentos, em segundos
+Local cTimerAbs := SuperGetMv("PPI_TABSPE",,"30") 
+HTTPSESSION->MNUACTIVE := 1.1
+%>
+<%=H_PPIHeader() %>
+
+<style>
+  .fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1050;
+    width: 100%!important;
+    height: 100%!important;
+  }
+  .abs-top-right {
+    position: absolute;
+    right: 7px;
+    top: 7px;
+    display: flex;
+  }
+  @media (min-width: 200px) {
+    #dataTableMonitor {
+      width: 100%;
+      white-space: nowrap;
+      font-size: 0.8rem;
+    }
+  }
+  @media (min-width: 992px) {
+    #dataTableMonitor {
+      width: 100%;
+      white-space: nowrap;
+      font-size: 0.95rem;
+    }
+  }
+  .dataTables_wrapper .row {
+    margin: 0px !important;
+  }
+  .dataTables_wrapper .row .col-sm-12{
+    padding: 0px !important;
+  }
+</style>
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0 text-dark">Monitor Abastecimentos Pendentes</h1>
+          </div><!-- /.col -->
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="index.apw">Home</a></li>
+              <li class="breadcrumb-item active">Monitoramento</li>
+            </ol>
+          </div><!-- /.col -->
+        </div><!-- /.row -->
+      </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+
+    <!-- Main content -->
+    <div class="content">
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-lg-12">
+            <div class="card" id="cardFull">
+              <div class="card-header ">
+                
+                <div class="abs-top-right">
+                    <button id="btnFilter" onclick="$('#filtros').slideToggle('slow');" class="btn btn-sm btn-default"><i class="fas fa-filter"></i></button>
+                    <button id="btnRefresh" onclick="refreshGd()" class="btn btn-sm btn-default"><i class="fas fa-sync-alt"></i></button>
+                    <button id="btnExpand" onclick="$('#cardFull').addClass('fullscreen');$('#btnExpand').hide();$('#btnCompress').show();" class="btn btn-sm btn-default"><i class="fas fa-expand"></i></button>
+                    <button id="btnCompress" onclick="$('#cardFull').removeClass('fullscreen');$('#btnExpand').show();$('#btnCompress').hide();" class="btn btn-sm btn-default"><i class="fas fa-compress"></i></button>
+                </div>
+
+                <h2 class="card-title"><b>Abastecimentos Pendentes</b></h2>
+              </div>
+              
+              <!-- filtros de busca -->
+              <form id="form_filter" method="POST" action="">
+                <div id="filtros">
+                  <div class="input-group input-group-sm p-2">
+                    <input type="text" name="inputBico" id="inputBico" autocomplete="off" class="form-control" style="width: 80px; flex: none;" placeholder="bico...">
+                    <input type="text" name="inputVend" id="inputVend" autocomplete="off" class="form-control" style="width: 150px; flex: none;" placeholder="vendedor...">
+                    <div class="input-group-append">
+                      <button type="submit" class="btn btn-default"><i class="fas fa-search"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              <div class="card-body px-0 py-0" id="table_body">
+                <div class="table-responsive" style="height: 100%;">
+                  <table class="table table-head-fixed table-bordered table-striped table-sm" id="dataTableMonitor" style="margin: 0px !important;">
+                    <thead>
+                        <tr>
+                            <th>Destaca</th>
+                            <th style="min-width: 40px;">Bico</th>
+                            <th style="min-width: 70px;">Data</th>
+                            <th style="min-width: 60px;">Hora</th>
+                            <th style="min-width: 100px;">Produto</th>
+                            <th style="min-width: 60px;">Qtde.</th>
+                            <th style="min-width: 60px;">Vlr.Unit.</th>
+                            <th style="min-width: 60px;">Vlr.Total</th>
+                            <th style="min-width: 80px;">Encerrante</th>
+                            <th style="min-width: 100px;">Vendedor</th>
+                        </tr>
+                    </thead>
+                    
+                  </table>
+                </div>
+              </div>
+              <!-- /.card-body -->
+              <div class="card-footer p-2 text-sm">
+                <span id="count_reg">0</span> registros encontrados
+              </div>
+            </div>
+          </div>
+          <!-- /.col-md-12 -->
+		  
+        </div>
+        <!-- /.row -->
+      </div>
+      <!-- /.container-fluid -->
+    </div>
+    <!-- /.content -->
+  </div>
+  <!-- /.content-wrapper -->
+
+<%=H_PPIFooter() %>
+
+<!-- DataTables -->
+<script src="plugins/datatables/jquery.dataTables.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.js"></script>
+<script>
+
+//datatables
+var table = $('#dataTableMonitor').DataTable({ 
+  "ajax": {  
+      "url": "load_abast_pend.apw",
+      "cache": false,
+      "type" : 'post',
+      "datatype": "json",
+      "data": function(d){
+        d.bico = $("#inputBico").val();
+        d.vendedor = $("#inputVend").val();
+      },
+      "beforeSend": function() {
+        $('#btnRefresh').prop("disabled", true);//disabled
+        $('.fa-sync-alt').addClass("fa-spin");
+      },
+      "complete": function() {
+        $('.fa-sync-alt').removeClass("fa-spin");
+        $('#btnRefresh').prop("disabled", false);
+        $('#count_reg').html( table.column(0).data().length );
+      },
+      "dataSrc": function (data) {
+        if (data.result == "OK"){
+          return data.dataReturn;
+        }else{
+          showMsgPopup("warning", data.message );
+          return data.dataReturn;
+        }                           
+      } 
+  },
+  "createdRow": function (row, data, index) {
+    //se coluna destaque esta com S, adiciona classe CSS
+    if (data[0] == "S") {
+        $(row).addClass('pendente');
+    }
+  },
+  "columnDefs":  
+    [{ //removo a coluna destaque
+      "targets": [0],  
+      "visible": false,  
+      "searchable": false  
+    },
+    { //alinhamento colunas numericas
+      "targets": [5,6,7,8], 
+      className: "text-right"
+    }],
+  "paging": false,
+  "lengthChange": true,
+  "searching": false,
+  "ordering": true,
+  "info": false,
+  "autoWidth": false,
+  "order": [[ 3, "asc" ]], //ordenacao inicia: hora
+  "language": {
+      "decimal":        "",
+      "emptyTable":     "Nenhum registro encontrado",
+      "info":           "Mostrando _START_ a _END_ de _TOTAL_ registros",
+      "infoEmpty":      "Mostrando 0 a 0 de 0 registros",
+      "infoFiltered":   "(filtrado de _MAX_ registros totais)",
+      "infoPostFix":    "",
+      "thousands":      ",",
+      "lengthMenu":     "Mostrar _MENU_ registros",
+      "loadingRecords": "Carregando...",
+      "processing":     "Processando...",
+      "search":         "Buscar:",
+      "zeroRecords":    "Nenhum registro encontrado",
+      "paginate": {
+          "first":      "Primeiro",
+          "last":       "Último",
+          "next":       "Próximo",
+          "previous":   "Anterior"
+      }
+  }
+});
+
+//timer de refresh
+var interval = (<%=cTimerAbs%>*1000);
+setInterval( function () {
+  refreshGd();
+}, interval );
+
+//faz refresh no grid buscando no host
+function refreshGd() {
+  //chamo ajax da datatable
+  table.ajax.reload();
+}
+
+$(document).ready(function() {
+  $('#filtros').hide();
+  $('#btnCompress').hide();
+  $('#table_body').css({
+      'height' : $('aside').outerHeight() - 290 + 'px'
+  });
+  $(".table-responsive").overlayScrollbars({ scrollbars : {autoHide : "leave"}});
+
+  $('#form_filter').submit(function(event) {
+    //desabilita acao do form
+    event.preventDefault();	
+    refreshGd();
+  });
+});
+
+</script>

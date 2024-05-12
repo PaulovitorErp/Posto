@@ -1,0 +1,343 @@
+<%  
+HTTPSESSION->MNUACTIVE := 0
+%>
+<%=H_PPIHeader() %>
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0 text-dark">Dashboard Posto Inteligente</h1>
+          </div><!-- /.col -->
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="index.apw">Home</a></li>
+              <li class="breadcrumb-item active">Dashboard</li>
+            </ol>
+          </div><!-- /.col -->
+        </div><!-- /.row -->
+      </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+
+    <!-- Main content -->
+    <div class="content">
+      <div class="container-fluid">
+        <div class="row">
+		
+          <!-- Left col -->
+          <section class="col-lg-6 connectedSortable">
+
+            <!-- Custom tabs (Charts with tabs)-->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">
+                  <i class="fas fa-chart-pie mr-1"></i>
+                  Venda do dia
+                </h3>
+                <div class="card-tools">
+                  <ul class="nav nav-pills ml-auto">
+                    <li class="nav-item">
+                      <a class="nav-link btn-sm active" href="#vdg-chart" data-toggle="tab">Geral</a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link btn-sm" href="#vdc-chart" data-toggle="tab">Combustíveis</a>
+                    </li>
+                  </ul>
+                </div>
+              </div><!-- /.card-header -->
+              <div class="card-body">
+                <div class="tab-content p-0">
+                  <div class="chart tab-pane active" id="vdc-chart" style="position: relative; height: 350px;">
+                      <canvas id="venda_dia_comb" style="min-height: 350px; height: 350px; max-height: 350px; max-width: 100%;"></canvas>
+                  </div>
+                  <div class="chart tab-pane active" id="vdg-chart" style="position: relative; height: 350px;">
+                      <canvas id="venda_dia_geral" style="min-height: 350px; height: 350px; max-height: 350px; max-width: 100%;"></canvas>     
+                  </div>  
+                </div>
+              </div><!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+
+          </section>
+          <!-- /.Left col -->
+
+          <!-- right col -->
+          <section class="col-lg-6 connectedSortable">
+
+            <!-- solid sales graph -->
+            <div class="card bg-gradient">
+              <div class="card-header border-0">
+                <h3 class="card-title">
+                  <i class="fas fa-th mr-1"></i>
+                  Evolução de Vendas Dia
+                </h3>
+
+                <!--
+                <div class="card-tools">
+                  <button type="button" class="btn bg-info btn-sm" data-card-widget="collapse">
+                    <i class="fas fa-minus"></i>
+                  </button>
+                  <button type="button" class="btn bg-info btn-sm" data-card-widget="remove">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+                -->
+
+              </div>
+              <div class="card-body">
+                <canvas class="chart" id="evolucao_vendas" style="min-height: 350px; height: 350px; max-height: 350px; max-width: 100%;"></canvas>
+              </div>
+              <!-- /.card-body -->
+              
+            </div>
+            <!-- /.card -->
+
+          </section>
+          <!-- right col -->
+		  
+        </div>
+        <!-- /.row -->
+      </div>
+      <!-- /.container-fluid -->
+    </div>
+    <!-- /.content -->
+  </div>
+  <!-- /.content-wrapper -->
+
+<%=H_PPIFooter() %>
+
+<!-- ChartJS -->
+<script src="plugins/chart.js/Chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/emn178/chartjs-plugin-labels/src/chartjs-plugin-labels.js"></script> 
+
+<!-- page script -->
+<script>
+  $(function () {
+
+    //-------------------------------
+    //- VENDA DIA COMBUSTIVEL CHART -
+    //-------------------------------
+    <%= U_PPIIndex('venda_dia_comb') %>
+    var VDCChartCanvas = $('#venda_dia_comb').get(0).getContext('2d');
+    var VDCData        = {
+      labels: aVDCProds,
+      datasets: [
+        {
+          data: aVDCLitros,
+          backgroundColor : ['#f56954', '#00a65a', '#f39c12', '#00c0ef', '#3c8dbc', '#cc649d'],
+        }
+      ]
+    }
+    var VDCOptions     = {
+      maintainAspectRatio : true,
+      responsive : false,
+      plugins: {
+        labels: [
+          {
+            position: 'outside',
+          }
+        ]
+      },
+      legend: {
+        display: true,
+        position: 'bottom'
+      },
+      tooltips: {
+        callbacks: {
+          title: function(tooltipItem, data) {
+            return data['labels'][tooltipItem[0]['index']];
+          },
+          label: function(tooltipItem, data) {
+            return "Qtd.: " + Number(data['datasets'][0]['data'][tooltipItem['index']]).toLocaleString() + ' Lt';
+          },
+          afterLabel: function(tooltipItem, data) {
+            return 'Total: ' + aVDCValor[tooltipItem['index']];
+          }
+        },
+        //backgroundColor: '#DDD',
+        //titleFontSize: 14,
+        //titleFontColor: '#000',
+        //bodyFontColor: '#000',
+        //bodyFontSize: 12,
+        //displayColors: false
+      }
+    }
+    //Create pie or doughnut chart
+    // You can switch between pie and doughnut using the method below.
+    var venda_dia_comb = new Chart(VDCChartCanvas, {
+      type: 'doughnut',
+      data: VDCData,
+      options: VDCOptions      
+    })
+
+    //-------------------------
+    //- VENDA DIA GERAL CHART -
+    //-------------------------
+    <%= U_PPIIndex('venda_dia_geral') %>
+    var VDGChartCanvas = $('#venda_dia_geral').get(0).getContext('2d');
+    var VDGData        = {
+      labels: aVDGProds,
+      datasets: [
+        {
+          data: aVDGValor,
+          backgroundColor : ['#f56954', '#00c0ef'],
+        }
+      ]
+    }
+    var VDGOptions     = {
+      maintainAspectRatio : true,
+      responsive : true,
+      plugins: {
+        labels: {
+          position: 'outside',
+          render: (args) => {
+            //return args.label ;
+            return args.value.toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
+          },
+          // draw text shadows under labels, default is false
+          textShadow: true,
+          // text shadow intensity, default is 6
+          shadowBlur: 10,
+          // text shadow X offset, default is 3
+          shadowOffsetX: 0,
+          // text shadow Y offset, default is 3
+          shadowOffsetY: 0,
+        }
+      },
+      legend: {
+        display: true,
+        position: 'bottom'
+      },
+      tooltips: {
+        callbacks: {
+          title: function(tooltipItem, data) {
+            return data['labels'][tooltipItem[0]['index']];
+          },
+          label: function(tooltipItem, data) {
+            return 'Total: ' + Number(aVDGValor[tooltipItem['index']]).toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
+          }
+        },
+        //backgroundColor: '#DDD',
+        //titleFontSize: 14,
+        //titleFontColor: '#000',
+        //bodyFontColor: '#000',
+        //bodyFontSize: 12,
+        //displayColors: false
+      }
+    }
+    //Create pie or douhnut chart
+    // You can switch between pie and douhnut using the method below.
+    var venda_dia_geral = new Chart(VDGChartCanvas, {
+      type: 'doughnut',
+      data: VDGData,
+      options: VDGOptions      
+    })
+
+
+    //####### Sales graph chart ######
+    <%= U_PPIIndex('evolucao_vendas') %>
+    var EVDChartCanvas = $('#evolucao_vendas').get(0).getContext('2d');
+    var EVDData = {
+      labels  : aEVDDates,
+      datasets: [
+        {
+          label               : 'Combustiveis',
+          fill                : false,
+          backgroundColor     : '#f56954',
+					borderColor         : '#f56954',
+          borderWidth         : 2,
+          lineTension         : 0,
+          spanGaps : true,
+          pointRadius         : 5,
+          pointHoverRadius    : 10,
+          pointColor          : '#f56954',
+          pointBackgroundColor: '#f56954',
+          data                : aEVDValComb
+        },
+        {
+          label               : 'Outros Produtos',
+          fill                : false,
+          backgroundColor     : '#f39c12',
+					borderColor         : '#f39c12',
+          borderWidth         : 2,
+          lineTension         : 0,
+          spanGaps : true,
+          pointRadius         : 5,
+          pointHoverRadius    : 10,
+          pointColor          : '#f39c12',
+          pointBackgroundColor: '#f39c12',
+          data                : aEVDValProd
+        },
+        {
+          label               : 'Total Geral',
+          fill                : false,
+          backgroundColor     : '#3c8dbc',
+					borderColor         : '#3c8dbc',
+          borderWidth         : 2,
+          lineTension         : 0,
+          spanGaps : true,
+          pointRadius         : 5,
+          pointHoverRadius    : 10,
+          pointColor          : '#3c8dbc',
+          pointBackgroundColor: '#3c8dbc',
+          data                : aEVDValues
+        }
+      ]
+    }
+
+    var EVDOptions = {
+      responsive: true,
+      legend: {
+        display: true,
+        position: 'bottom'
+      },
+      title: {
+        display: false,
+      },
+      tooltips: {
+        mode: 'index',
+        //intersect: false,
+        callbacks: {
+          label: function(tooltipItem, data) {
+            return data.datasets[tooltipItem.datasetIndex].label + ": " + Number(data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]).toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
+          }
+        },
+      },
+      hover: {
+        mode: 'nearest',
+        intersect: true
+      },
+      scales: {
+        xAxes: [{
+          display: true,
+          scaleLabel: {
+            display: false,
+            //labelString: 'Dias'
+          }
+        }],
+        yAxes: [{
+          display: true,
+          scaleLabel: {
+            display: true,
+            labelString: 'Valor em R$'
+          }
+        }]
+      }
+		}
+
+    // This will get the first returned node in the jQuery collection.
+    var EVDChart = new Chart(EVDChartCanvas, { 
+        type: 'line', 
+        data: EVDData, 
+        options: EVDOptions
+      }
+    )
+
+    $('#vdc-chart').removeClass("active");
+
+  })
+</script>

@@ -1,0 +1,246 @@
+#include 'protheus.ch'
+#include 'parmtype.ch'
+#include 'topconn.ch'
+
+/*/{Protheus.doc} User Function PPIPrecoNeg
+Carrega dados de Preço negociado
+
+@type  Function
+@author thebritto
+@since 08/12/2020
+@version version
+/*/
+User Function PPIPrecoNeg()
+
+    Local lNgDesc
+    Local cReturn 
+    Local cCodProd
+    Local cCgc
+    Local cCodCli
+    Local cGrupo
+    Local cResult := "OK"
+    Local cRetTX := ""
+    Local cHtml := "[]"
+    Local nCount := 0
+    Local nPrcTab
+    Local cSGBD 	 	:= Upper(AllTrim(TcGetDB()))	// Guarda Gerenciador de banco de dados
+
+    If HTTPPOST->CODPROD != NIL .AND. HTTPPOST->CGC != NIL .and. HTTPPOST->CODCLI != NIL .and. HTTPPOST->GRUPO != NIL
+
+        cCodProd := HTTPPOST->CODPROD
+        cCgc := HTTPPOST->CGC
+        cCodCli := HTTPPOST->CODCLI
+        cGrupo := HTTPPOST->GRUPO
+
+        if !empty(cCgc) .AND. len(cCgc) < 10
+            cRetTX := "Informe um CPF ou CNPJ completo para pesquisa!"
+            cResult := "ER"
+        endif
+
+        if cResult=="OK" .AND. !empty(cCodCli) .AND. len(cCodCli) < TamSX3("A1_COD")[1]
+            cRetTX := "Informe codigo do cliente completo para pesquisa!"
+            cResult := "ER"
+        endif
+
+        if cResult=="OK" .AND. !empty(cGrupo) .AND. len(cGrupo) < TamSX3("U25_GRPCLI")[1]
+            cRetTX := "Informe codigo do grupo de cliente completo para pesquisa!"
+            cResult := "ER"
+        endif
+        
+        if cResult=="OK" .AND. empty(cCodCli) .AND. !empty(cCgc) 
+            cCodCli := Posicione("SA1",3,xFilial("SA1")+cCgc,"A1_COD") + SA1->A1_LOJA
+        endif
+
+        if cResult=="OK" .AND. !empty(cCodProd) 
+            cCodProd := Posicione("SB1",1,xFilial("SA1")+cCodProd,"B1_COD")
+        endif
+
+        if cResult=="OK" .AND. !empty(cCodProd+cCodCli+cGrupo)
+
+            lNgDesc := SuperGetMV("MV_XNGDESC",,.T.) //Ativa negociação pelo valor de desconto: U25_DESPBA
+
+            If "ORACLE" $ cSGBD //Oracle 
+                cQry := " SELECT "
+            else
+                cQry := " SELECT TOP 100 "
+            endif
+            
+            cQry += " U25_CLIENT, U25_LOJA, ISNULL(A1_NOME,'') A1_NOME,"
+            cQry += " U25_GRPCLI, ISNULL(ACY_DESCRI,'') ACY_DESCRI, "
+            cQry += " U25_PRODUT, ISNULL(B1_DESC,'') B1_DESC, "
+            cQry += " U25_FORPAG, U25_CONDPG, ISNULL(U44_DESCRI,'') U44_DESCRI, U25_ADMFIN, "
+            cQry += " U25_DTINIC, U25_HRINIC, U25_DTFIM, U25_HRFIM, "
+
+            //PREÇO BASE E DESCONTO/ACRESCIMO
+            if lNgDesc
+                cQry += " 0 as U25_PRCBAS, U25_DESPBA, "
+            endif
+
+            cQry += " U25_PRCVEN"
+
+            cQry += " FROM " + RetSqlName("U25") + " U25 "
+
+            //JUNCAO COM PRODUTOS: SB1
+            cQry += " INNER JOIN "+RetSqlName("SB1")+" SB1 ON SB1.D_E_L_E_T_ = ' ' "
+            if empty(xFilial("SB1")) //se for compartilhada total
+                cQry += " AND B1_FILIAL = '"+xFilial("SB1")+"'"
+            elseif Len(Alltrim(xFilial("SB1"))) == Len(Alltrim(xFilial("U25"))) //se SB1 é exclusiva
+                cQry += " AND B1_FILIAL = U25_FILIAL "
+            else //compartilhada parcialmente
+                cQry += " AND SUBSTRING(B1_FILIAL,1,"+Len(Alltrim(xFilial("SB1")))+") = SUBSTRING(U25_FILIAL,1,"+Len(Alltrim(xFilial("SB1")))+")  "
+            endif
+            cQry += " AND B1_COD = U25_PRODUT  "
+
+            //JUNCAO COM CLIENTES: SA1
+            cQry += " LEFT JOIN "+RetSqlName("SA1")+" SA1 ON SA1.D_E_L_E_T_ = ' ' "
+            if empty(xFilial("SA1")) //se for compartilhada total
+                cQry += " AND A1_FILIAL = '"+xFilial("SA1")+"'"
+            elseif Len(Alltrim(xFilial("SA1"))) == Len(Alltrim(xFilial("U25"))) //se SA1 é exclusiva
+                cQry += " AND A1_FILIAL = U25_FILIAL "
+            else //compartilhada parcialmente
+                cQry += " AND SUBSTRING(A1_FILIAL,1,"+Len(Alltrim(xFilial("SA1")))+") = SUBSTRING(U25_FILIAL,1,"+Len(Alltrim(xFilial("SA1")))+")  "
+            endif
+            cQry += " AND A1_COD = U25_CLIENT AND A1_LOJA = U25_LOJA "
+
+            //JUNCAO COM GRUPO CLIENTES: ACY
+            cQry += " LEFT JOIN "+RetSqlName("ACY")+" ACY ON ACY.D_E_L_E_T_ = ' ' "
+            if empty(xFilial("ACY")) //se for compartilhada total
+                cQry += " AND ACY_FILIAL = '"+xFilial("ACY")+"'"
+            elseif Len(Alltrim(xFilial("ACY"))) == Len(Alltrim(xFilial("U25"))) //se ACY é exclusiva
+                cQry += " AND ACY_FILIAL = U25_FILIAL "
+            else //compartilhada parcialmente
+                cQry += " AND SUBSTRING(ACY_FILIAL,1,"+Len(Alltrim(xFilial("ACY")))+") = SUBSTRING(U25_FILIAL,1,"+Len(Alltrim(xFilial("ACY")))+")  "
+            endif
+            cQry += " AND ACY_GRPVEN = U25_GRPCLI "
+
+            //JUNCAO COM NEGOCIACOES: U44
+            cQry += " LEFT JOIN "+RetSqlName("U44")+" U44 ON U44.D_E_L_E_T_ = ' ' AND U44_FILIAL = U25_FILIAL AND U44_FORMPG = U25_FORPAG AND U44_CONDPG = U25_CONDPG "
+
+            cQry += " WHERE U25.D_E_L_E_T_ = ' ' "
+            cQry += " AND U25_FILIAL = '" + xFilial("U25") + "' "
+
+            //FILTRO PREÇOS VIGENTES
+            cQry += " AND U25_DTINIC+U25_HRINIC <= '"+DTOS(dDataBase)+SubStr(Time(),1,5)+"' "
+            cQry += " AND (U25_DTFIM = '        ' OR (U25_DTFIM+U25_HRFIM >= '"+DTOS(dDataBase)+""+SubStr(Time(),1,5)+"')) "
+            
+            //FILTRO POR PRODUTO
+            if !empty(cCodProd)
+                cQry += " AND U25_PRODUT = '"+cCodProd+"' "
+            endif
+
+            //FILTRO POR CLIENTE/GRUPO
+            //preencheu cliente e grupo
+            if !empty(cCodCli) .AND. !empty(cGrupo)
+                if len(cCodCli) == TamSX3("A1_COD")[1] //só pelo codigo
+                    cQry += " AND (U25_CLIENT = '" +cCodCli+"' OR (U25_GRPCLI <> '' AND U25_GRPCLI = '"+cGrupo+"') )"
+                else
+                    cQry += " AND ((U25_CLIENT+U25_LOJA = '" +cCodCli+"') OR (U25_GRPCLI <> '' AND U25_GRPCLI = '"+aParamEnc[3]+"') )"
+                endif
+            //so cliente
+            elseif !empty(cCodCli)
+                cCpGrpCli := Posicione("SA1",1,xFilial("SA1")+cCodCli,"A1_GRPVEN")
+                if !empty(cCpGrpCli)
+                    if len(cCodCli) == TamSX3("A1_COD")[1] //só pelo codigo
+                        cQry += " AND (U25_CLIENT = '" +cCodCli+"' OR (U25_GRPCLI <> '' AND U25_GRPCLI = '"+cCpGrpCli+"') )"
+                    else
+                        cQry += " AND ((U25_CLIENT+U25_LOJA = '" +cCodCli+"') OR (U25_GRPCLI <> '' AND U25_GRPCLI = '"+cCpGrpCli+"') )"
+                    endif
+                else
+                    if len(cCodCli) == TamSX3("A1_COD")[1] //só pelo codigo
+                        cQry += " AND U25_CLIENT = '" +cCodCli+"'"
+                    else
+                        cQry += " AND U25_CLIENT+U25_LOJA = '" +cCodCli+"' "
+                    endif
+                endif
+            //so grupo
+            elseif !empty(cGrupo)
+                cQry += " AND U25_GRPCLI = '"+cGrupo+"'"
+            endif
+
+            If "ORACLE" $ cSGBD //Oracle 
+                cQry += " AND ROWNUM <= 100"
+            endif
+
+            cQry += " ORDER BY U25_PRODUT, U25_FORPAG, U25_CONDPG  "
+
+            If Select("QRYU25") > 0
+                QRYU25->(DbCloseArea())
+            EndIf
+
+            cQry := ChangeQuery(cQry)
+            TcQuery cQry New Alias "QRYU25" // Cria uma nova area com o resultado do query
+
+            //Preparando retorno formato JSON
+            cHtml := '['
+
+            //Preço padrao de tabela
+            if !empty(cCodProd)
+                nPrcTab := U_URetPrec(cCodProd,,.F.)
+                if nPrcTab > 0
+                    cHtml += '['
+                    cHtml += '"'+cCodProd+'",'
+                    cHtml += '"'+Alltrim(Posicione("SB1",1,xFilial("SB1")+cCodProd,"B1_DESC"))+'",'
+                    cHtml += '"'+Alltrim(Transform(nPrcTab, "@E 99,999,999.999" ))+'",'
+                    cHtml += '"",'
+                    cHtml += '"PRECO PADRAO, SEM NEGOCIACAO",'
+                    cHtml += '"",'
+                    cHtml += '"",'
+                    cHtml += '""'
+                    cHtml += ']'
+
+                    nCount++
+                endif
+            endif
+
+            QRYU25->(dbGoTop())
+            While QRYU25->(!Eof())
+                
+                if nCount > 0
+                    cHtml += ','
+                endif
+                cHtml += '['
+                cHtml += '"'+QRYU25->U25_PRODUT+'",'
+                cHtml += '"'+QRYU25->B1_DESC+'",'
+                //Preço Tabela
+                if lNgDesc
+                    nPrcTab := U_URetPrBa(QRYU25->U25_PRODUT, QRYU25->U25_FORPAG, QRYU25->U25_CONDPG, QRYU25->U25_ADMFIN, 0, StoD(QRYU25->U25_DTINIC), QRYU25->U25_HRINIC)
+                else
+                    nPrcTab := U_URetPrec(QRYU25->U25_PRODUT,,.F.)
+                endif
+                cHtml += '"'+Alltrim(Transform(nPrcTab, "@E 99,999,999.999" ))+'",'
+                
+                //Preço Negociado
+                if lNgDesc
+                    cHtml += '"'+Alltrim(Transform(nPrcTab - QRYU25->U25_DESPBA, "@E 99,999,999.999" ))+'",'
+                else
+                    cHtml += '"'+Alltrim(Transform(QRYU25->U25_PRCVEN, "@E 99,999,999.999" ))+'",'
+                endif
+
+                cHtml += '"'+QRYU25->U25_FORPAG + QRYU25->U25_CONDPG  + ' - ' + Alltrim(QRYU25->U44_DESCRI) +'",'
+                cHtml += '"'+QRYU25->U25_CLIENT+QRYU25->U25_LOJA  + ' - ' + Alltrim(QRYU25->A1_NOME) +'",'
+                cHtml += '"'+QRYU25->U25_GRPCLI + ' - ' + Alltrim(QRYU25->ACY_DESCRI) +'",'
+                cHtml += '"'+QRYU25->U25_ADMFIN + ' - ' + Alltrim(Posicione("SAE",1,xFilial("SAE")+QRYU25->U25_ADMFIN,"AE_DESC")) +'"'
+                cHtml += ']'
+                
+                nCount++
+
+                QRYU25->(DbSkip())
+            EndDo
+
+            QRYU25->(DbCloseArea())
+
+            cHtml += ']'
+
+        endif
+
+    else
+        cRetTX := "Falha ao buscar registros (passagem de parametros) "
+        cResult := "ER"
+    endif
+
+    //Preparando retorno formato JSON
+    cReturn := '{"result":"'+cResult+'", "dataReturn": '+cHtml+', "message":"'+cRetTX+'"}'
+    //cReturn := cRetTX
+    //cReturn := cHtml
+
+Return cReturn

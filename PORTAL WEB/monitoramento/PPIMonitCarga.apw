@@ -1,0 +1,135 @@
+#INCLUDE "PROTHEUS.CH"
+
+Static cIpRabbitMQ		:= SuperGetMV("MV_XRMQIP ",.F.,"127.0.0.1")
+Static nPortRabbitMQ	:= SuperGetMV("MV_XRMQPOR",.F.,5672)
+Static cUserNameRMQ		:= SuperGetMV("MV_XRMQUSE",.F.,"cargatotvs")
+Static cPswRMQ			:= SuperGetMV("MV_XRMQPSW",.F.,"mQRqUgtmVnO43TyGSk4PCpf7UU3V0rIA")
+Static nChannelId		:= SuperGetMV("MV_XRMQCHA",.F.,1)
+
+/*/{Protheus.doc} User Function PPIMonitCarga
+    (long_description)
+    @type  Function
+    @author thebritto
+    @since 22/06/2021
+    @version 1
+    @param nOpc, number, 1=Lista de hosts;2=Status Hosts
+    @example
+    (examples)
+    @see (links_or_references)
+    /*/
+User Function PPIMonitCarga(nOpc)
+    
+    Local lSep := .F.
+    Local aInfos := {}
+    Local aCargas := {}
+    Local cStatus := ''
+    Local nPosX := 0
+    Local oServer := Nil //Objeto de conexao com o server
+    Local nX
+    Local oProducer
+
+    Local nQtdCarga := 0
+
+    MD4->(dbSetOrder(1)) //MD4_FILIAL+MD4_CODIGO
+    MD3->(dbSetOrder(1)) //MD3_FILIAL+MD3_CODAMB+MD3_TIPO
+
+    if nOpc == 1 //Lista todos Ambientes Replicacao (filhos) -> aPDVs
+
+        //Posiciona no primeiro registro com Filial + Codigo
+        If MD4->(dbSeek(xFilial("MD4")))
+            While MD4->(!Eof()) .AND. ( MD4->MD4_FILIAL == xFilial("MD4") )
+                //Processa somente ambiente PDV
+                If !Empty(MD4->MD4_AMBPAI)
+                    If MD3->(dbSeek(xFilial("MD3") + MD4->MD4_CODIGO + "R"))
+                        nPosX := aScan(aInfos, {|x| x[1] == MD3->MD3_EMP+"-"+MD3->MD3_FIL })
+                        if nPosX == 0
+                            aadd(aInfos, {MD3->MD3_EMP+"-"+MD3->MD3_FIL, {} })
+                            nPosX := len(aInfos)
+                        endif
+                        aadd(aInfos[nPosX][2], {MD3->MD3_CODAMB, MD3->MD3_DESCRI} )
+                    endif
+                EndIf
+                MD4->(DbSkip())
+            EndDo
+        EndIf
+    
+    else
+
+        oProducer  := tAmqp():New( cIpRabbitMQ, nPortRabbitMQ, cUserNameRMQ, cPswRMQ, nChannelId ) //Cria um objeto tAMQP com um determinado AMQP Server.
+        If Empty(oProducer:Error())
+
+            aCargas := {}
+            //Posiciona no primeiro registro com Filial + Codigo
+            If MD4->(dbSeek(xFilial("MD4")))
+                While MD4->(!Eof()) .AND. ( MD4->MD4_FILIAL == xFilial("MD4") )
+                    //Processa somente ambiente PDV
+                    If !Empty(MD4->MD4_AMBPAI)
+                        If MD3->(dbSeek(xFilial("MD3") + MD4->MD4_CODIGO + "R"))
+                            
+                            oProducer:QueueDeclare( LOWER(AllTrim(MD4->MD4_CODIGO)+"_"+AllTrim(MD4->MD4_DESCRI)), .T. /*bisDurable*/, .F. /*bisExclusive*/, .F. /*bisAutodelete*/ ) //Cria uma nova fila no AMQP Server.
+                            
+                            //quantidade de cargas pendentes
+                            cQtdCar := oProducer:MessageCount()
+
+                            //Cria objeto da conexao RPC
+                            oServer := TRPC():New(AllTrim(MD3->MD3_NOMAMB))
+                            If oServer:Connect(AllTrim(MD3->MD3_IP), Val(MD3->MD3_PORTA))
+                                cStatus := .T.
+                                oServer:Disconnect() //Encerra conexao
+                            Else   
+                                cStatus := .F.
+                            EndIf
+
+                            Aadd(aCargas, {MD3->MD3_CODAMB, cQtdCar, cStatus, MD3->MD3_EMP+"-"+MD3->MD3_FIL })
+
+                        EndIf
+                    EndIf
+                    MD4->(DbSkip())
+                EndDo
+            EndIf
+            
+            cStatus := '{'
+            cStatus += '"stredis":true, '
+
+            //pego a maior quantidade de cargas pendentes
+            nQtdCarga := 0
+            for nX := 1 to len(aCargas)
+                if aCargas[nX][2] > nQtdCarga
+                    nQtdCarga := aCargas[nX][2]
+                endif
+            next nX
+            cStatus += '"qtdcarga":"'+cValToChar(nQtdCarga)+'",'
+
+            cStatus += '"hosts": ['
+
+            for nX := 1 to len(aCargas)
+            
+                if lSep
+                    cStatus += ','
+                endif
+                cStatus += '{"filial":"'+aCargas[nX][4]+'",'
+                cStatus += '"md3id":"'+aCargas[nX][1]+'",'
+
+                if aCargas[nX][3]
+                    cStatus += '"online":true,'
+                else
+                    cStatus += '"online":false,'
+                endif
+
+                cStatus += '"cargasbx":"'+CValToChar(aCargas[nX][2])+'"}'
+
+                lSep := .T.
+            next nX
+
+            cStatus += ']'
+            cStatus += '}'
+
+        Else
+            cStatus += '{"stredis":false, "qtdcarga":"0", "hosts": []}'
+            Return cStatus
+        EndIf
+
+
+    endif
+
+Return iif(nOpc == 1, aInfos, cStatus)

@@ -1,0 +1,20 @@
+/*/{Protheus.doc} User Function PPILogin
+Faz o logoff do usuario e sua sessão
+
+@type  Function
+@author thebritto
+@since 02/04/2020
+@version version
+/*/
+User Function PPILogout()
+    
+    //encerro a conexao da empresa
+    RpcClearEnv()
+
+    //finaliza a sessao
+    HTTPFREESESSION()
+
+    HTTPSRCODE(307,"Logout Redirection")
+    HTTPHEADOUT->Location := "/index.apw"
+
+Return ""

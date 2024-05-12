@@ -1,0 +1,13 @@
+
+<img height="15" src="dist/img/totvs-logo.png" alt="Totvs Brasil Central">
+<p class="text-xs text-center pt-2">Copyright &copy; 2020 Posto Inteligente - Totvs Brasil Central. <br/>Todos os direitos reservados.</p>
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<!-- AdminLTE App -->
+<script src="dist/js/adminlte.min.js"></script>
+
+</body>
+</html>

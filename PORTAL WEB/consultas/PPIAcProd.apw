@@ -1,0 +1,67 @@
+#include 'protheus.ch'
+#include 'parmtype.ch'
+#include 'topconn.ch'
+
+/*/{Protheus.doc} User Function PPIAcProd
+Carrega lista de produtos na consulta do AutoComplete
+
+@type  Function
+@author thebritto
+@since 08/12/2020
+@version version
+/*/
+User Function PPIAcProd()
+
+    Local nCount := 0
+    Local cReturn := ""
+    Local cQry := ""
+    Local cBusca := HTTPGET->term 
+    Local cSGBD 	 	:= Upper(AllTrim(TcGetDB()))	// Guarda Gerenciador de banco de dados
+
+    cReturn += "["
+
+    If "ORACLE" $ cSGBD //Oracle 
+        cQry += " SELECT "
+    else
+        cQry += " SELECT TOP 15 "
+    endif
+    cQry += " B1_DESC, B1_COD"
+    cQry += " FROM " + RetSqlName("SB1") + " SB1 "
+    cQry += " WHERE SB1.D_E_L_E_T_ = ' ' "
+    cQry += " AND B1_FILIAL = '" + xFilial("SB1") + "' "
+
+    //se os 3 primeiros caracteres são numerico, busco por codigo de barra
+    if SubStr(cBusca,1,1) $ "0123456789" .AND. SubStr(cBusca,2,1) $ "0123456789" .AND. SubStr(cBusca,3,1) $ "0123456789"
+        cQry += " AND B1_CODBAR LIKE '"+Alltrim(cBusca)+"%' "
+    else
+        cQry += " AND B1_DESC LIKE '"+Alltrim(Upper(cBusca))+"%' "
+    endif
+    If "ORACLE" $ cSGBD //Oracle 
+        cQry += " AND ROWNUM <= 15"
+    endif
+    cQry += " ORDER BY B1_DESC "
+
+    If Select("QRYPRD") > 0
+        QRYPRD->(DbCloseArea())
+    EndIf
+
+    cQry := ChangeQuery(cQry)
+    TcQuery cQry New Alias "QRYPRD" // Cria uma nova area com o resultado do query
+
+    QRYPRD->(dbGoTop())
+    While QRYPRD->(!Eof())
+
+        if nCount > 0
+            cReturn += ','
+        endif
+        cReturn += '{"value":"'+Alltrim(QRYPRD->B1_DESC)+'","label":"'+Alltrim(QRYPRD->B1_DESC)+' | '+Alltrim(QRYPRD->B1_COD)+'","id":"'+QRYPRD->B1_COD+'"}'
+        nCount++
+
+        QRYPRD->(DbSkip())
+    EndDo
+
+    QRYPRD->(DbCloseArea())
+
+    cReturn += "]"
+
+Return cReturn
