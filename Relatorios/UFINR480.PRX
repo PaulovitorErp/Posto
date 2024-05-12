@@ -1,0 +1,864 @@
+#INCLUDE "PROTHEUS.CH"
+
+STATIC nColVlr
+STATIC nLin1Ext
+STATIC nCol1Ext
+STATIC nLin2Ext
+STATIC nCol2Ext
+STATIC nLinFav
+STATIC nColFav
+STATIC nLinDat
+STATIC nColVir
+STATIC cExt
+STATIC nCasas  :=0
+STATIC nColAno :=0                           
+STATIC nTamChq	:=0
+STATIC nTamExt
+STATIC nTamLin
+STATIC cValor
+STATIC nSalto
+STATIC nComp
+STATIC __lFirst	:=.T.
+STATIC __lSetPrint := .F.
+STATIC __lTeste := .F.
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} FINR480
+Impressao de Cheques 
+
+@author    Wagner Xavier
+@version   1.00
+@since     09/07/1992
+//------------------------------------------------------------------------------------------
+/*/
+User Function UFINR480()
+
+	Local lRet := .T.
+
+	PRIVATE wnrel
+	PRIVATE titulo := "Emissäo de Cheques em Formulário Contínuo"
+	PRIVATE cabec1
+	PRIVATE cabec2
+	PRIVATE aReturn := { "Cheque", 1, "Administracao", 1, 2, 1, "",1 } 
+	PRIVATE nomeprog:="FINR480"
+	PRIVATE nLastKey:= 0
+	PRIVATE cPerg   :="FIN480"
+	PRIVATE lComp   := .T.
+	PRIVATE lLayOut := .F.
+	PRIVATE lMesNum := .F.
+	PRIVATE nLinVlr := 0
+	PRIVATE cBenef
+	PRIVATE lFA480MUN := ExistBlock("FA480MUN")
+	PRIVATE lReset := .F.
+
+	nComp	:= GetMv("MV_COMP")
+
+	// Verifica as perguntas selecionadas
+	//-------------------------------------------------------------------
+	// Variaveis utilizadas para parametros
+	// mv_par01            // Codigo do Banco
+	// mv_par02            // Agencia
+	// mv_par03            // Conta
+	// mv_par04            // Do Cheque
+	// mv_par05            // Ate o Cheque
+	// mv_par06            // Data Inicial
+	// mv_par07            // Data Final
+	// mv_par08            // LayOut do Cheque (Normal ou CPMF)
+	// mv_par09            // Codigo do Banco Destino (CPMF)
+	// mv_par10            // Agencia  Destino (CPMF)
+	// mv_par11            // Conta  Destino (CPMF)
+	//--------------------------------------------------------------------
+	AjustaSX1("UFIN480")
+	If !Pergunte("UFIN480",.T.)
+		lRet := .F.
+	EndIf
+
+	If lRet
+		FA480Imp()
+	EndIf	
+
+Return lRet
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} FA480Imp
+Impressao de Cheques 
+
+@author    Marcos Patricio
+@version   1.00
+@since     20/12/1995
+//------------------------------------------------------------------------------------------
+/*/
+Static Function FA480Imp()
+
+	LOCAL nRecAnt		:= 0
+	LOCAL nSavRec, nSavOrd := 0
+	Local aDriver		:= ReadDriver()
+	Local cMunic		:= ""
+	Local lFa480Bene	:= ExistBlock("FA480BENE")  
+	Local nQtdeChe		:= 0
+	Local lMostraMsg	:= .F.  
+	Local lTodosSim		:= .F.
+	Local lTodosNao		:= .F.
+	Local nOpcA			:= 0
+
+	// Verifica se existe o Banco
+	dbSelectArea("SA6")
+	SA6->(DbSetOrder(1)) //A6_FILIAL+A6_COD+A6_AGENCIA+A6_NUMCON
+	IF !SA6->(dbSeek(xFilial("SA6")+mv_par01+mv_par02+mv_par03))
+		Help(" ",1,"BCONOEXIST")
+		Return
+	Endif
+
+	If cPaisLoc == "BRA" .and. !MyFr480CC(3)
+		Help(" ",1,"BCODESTINO",,"Dados da Conta Corrente Destino do cheque CPMF säo invalidos",1,1)
+		Return
+	Endif
+
+	If cPaisLoc<>"ARG"
+		mv_par04:=mv_par04+Space( TamSX3("UF2_NUM")[1]     - Len(mv_par04))
+		mv_par01:=mv_par01+Space( TamSX3("UF2_BANCO")[1]   - Len(mv_par01))
+		mv_par02:=mv_par02+Space( TamSX3("UF2_AGENCI")[1] - Len(mv_par02))
+		mv_par03:=mv_par03+Space( TamSX3("UF2_CONTA")[1]   - Len(mv_par03))
+		mv_par05:=mv_par05+Space( TamSX3("UF2_NUM")[1]     - Len(mv_par05))
+	Endif
+
+	lImprimiu	:= .F.
+	__lTeste 		:= .F. 
+	lMostraMsg	:= .T.
+	nQtdeChe	:= 0
+
+	dbSelectArea("UF2")
+	UF2->(DbSetOrder(2))//UF2_FILIAL+UF2_BANCO+UF2_AGENCI+UF2_CONTA+UF2_NUM
+	UF2->(dbSeek(  xFilial("UF2")+mv_par01+mv_par02+mv_par03+mv_par04,.T. ))
+	cCond1:="UF2->UF2_BANCO==mv_par01.and.UF2->UF2_AGENCI==mv_par02.and.UF2->UF2_CONTA==mv_par03.and.UF2->UF2_NUM<=mv_par05"	
+
+	@ Prow(), PCol() PSAY Chr(27)+Chr(120)+Chr(64)  
+
+	While UF2->(!Eof()) .and. UF2->UF2_FILIAL == xFilial("UF2") .and. &cCond1
+		nPosTot:=1
+
+		IF UF2->UF2_IMPRES == "S"
+			if !lTodosSim
+				nOpcA := Aviso( "Cheque já impresso!", "O Cheque "+UF2->UF2_NUM+" está marcado como impresso. Deseja fazer a Reimpressão?", { "Sim", "Não", "Sim p/Todos", "Não p/Todos" }, 3, "" )
+				lTodosSim := ( nOpcA == 3 )
+				lTodosNao := ( nOpcA == 4 )
+			endif
+			if lTodosNao .OR. nOpcA == 2 
+				UF2->(dbSkip())
+				Loop
+			endif
+		Endif
+
+		If !Empty(UF2->UF2_BANCO)
+			If UF2->UF2_BANCO != mv_par01
+				dbSkip( )
+				Loop
+			EndIf
+		EndIf
+
+		If Empty(UF2->UF2_NUM )
+			UF2->(dbSkip())
+			Loop
+		EndIf
+
+		if !empty(mv_par06) .OR. !empty(mv_par07)
+			If UF2->UF2_DTINC < mv_par06 .or. UF2->UF2_DTINC > mv_par07
+				dbSkip()
+				Loop
+			Endif
+		endif
+
+		// Recupera o extenso do cheque e monta as linhas
+		nSavOrd := UF2->(IndexOrd())
+		nRecAnt := Recno()
+		dbSkip()
+		nSavRec := RecNo()
+		dbGoto(nRecAnt)
+		cBenef := UF2->UF2_BENEF	
+
+		// Ponto de entrada que permite alterar o beneficiario
+		If lFa480Bene
+			cBenef := ExecBlock("FA480BENE",.F.,.F.)
+		Endif
+																	
+		// Ponto de entrada para carga do municipio pelo cliente.
+		If lFA480MUN
+			cMunic := ExecBlock("FA480MUN",.F.,.F.)
+		Else
+			cMunic := SA6->A6_MUN
+		Endif
+
+		If !MyImpCheq(mv_par01,mv_par02,mv_par03,.F.,xFilial("SE5"),mv_par08,cMunic,aDriver)
+			lMostraMsg 	:= .F.
+			Exit
+		Endif
+
+		lImprimiu 		:= .T.
+		lMostraMsg 		:= .F.
+		nQtdeChe ++
+		dbSelectArea( "UF2" )
+		dbSetOrder(nSavOrd)
+		dbGoTo( nSavRec )
+	Enddo
+
+	FinalImp(lImprimiu, lMostraMsg, nQtdeChe)
+
+Return
+
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} MyImpCheq
+Imprime um determinado cheque 
+
+@author    Wagner Xavier  
+@version   1.00
+@since     09/07/1992
+//------------------------------------------------------------------------------------------
+/*/
+Static Function MyImpCheq(cBanco,cAgencia,cConta,lMovBco,cFilAtual,nLayOut,cMunic,aDriver)
+
+	Local lRet		:=	.F.
+	Local nLinLoc
+	Local nColLoc
+	Local nColDat
+	Local nColBco
+	Local nColCta            
+
+	nComp := IIF(nComp == NIL , GetMv("MV_COMP"), nComp)
+	nLayOut := IIF(nLayOut == NIL, 1, nLayOut)
+
+	DEFAULT cMunic := SA6->A6_MUN
+
+	// Verifica se cheque foi configurado.
+	IF (nLayOut == 1 .and. Empty( SA6->A6_LAYOUT )) .or. (nLayOut == 2 .and. Empty( SA6->A6_LAYIPMF ))
+		Help(" ",1,"CHEQNAOCONF")
+		Return .f.
+	Endif
+
+	If ! lLayout 
+		If nLayOut == 1
+			nTamChq :=Val(Substr(SA6->A6_LAYOUT,1,2))
+			nSalto  :=Val(Substr(SA6->A6_LAYOUT,3,1))
+			nLinVlr :=Val(SubStr(SA6->A6_LAYOUT,4,1))
+			nColVlr :=Val(SubStr(SA6->A6_LAYOUT,25, 3))
+			nColVlr :=IIF(nColVlr==0,93,nColVlr)
+			nLin1Ext:=Val(SubStr(SA6->A6_LAYOUT,5,1))-nLinVlr
+			nCol1Ext:=Val(SubStr(SA6->A6_LAYOUT,6,2))
+			nLin2Ext:=Val(SubStr(SA6->A6_LAYOUT,8,1))-Val(SubStr(SA6->A6_LAYOUT,5,1))
+			nCol2Ext:=Val(SubStr(SA6->A6_LAYOUT,9,2))
+			nTamExt :=Val(SubStr(SA6->A6_LAYOUT,23, 2))
+			nTamExt :=IIF(nTamExt==0,95,nTamExt)
+			nLinFav :=Val(SubStr(SA6->A6_LAYOUT,11,2))-Val(SubStr(SA6->A6_LAYOUT,8,1))
+			nColFav :=Val(SubStr(SA6->A6_LAYOUT,13,2))
+			nLinDat :=Val(SubStr(SA6->A6_LAYOUT,15,2))-Val(SubStr(SA6->A6_LAYOUT,11,2))
+			nColVir :=Val(SubStr(SA6->A6_LAYOUT,17,2))
+			nCasas  :=Val(SubStr(SA6->A6_LAYOUT,19,1))
+			nCasas  :=IIF(nCasas==0,2,nCasas)
+			nColAno :=Val(SubStr(SA6->A6_LAYOUT,20,3))
+			lComp   :=(SubStr(SA6->A6_LAYOUT,28, 1)=="S" .or. SubStr(SA6->A6_LAYOUT,28, 1)==" ")
+			lMesNum :=(SubStr(SA6->A6_LAYOUT,29, 1)=="S" .and. SubStr(SA6->A6_LAYOUT,29, 1)<>" ")
+		Else
+			nTamChq :=Val(Substr(SA6->A6_LAYIPMF,1,2))
+			nSalto  :=Val(Substr(SA6->A6_LAYIPMF,3,1))
+			nLinVlr :=Val(SubStr(SA6->A6_LAYIPMF,4,1))
+			nColVlr :=Val(SubStr(SA6->A6_LAYIPMF,25, 3))
+			nColVlr :=IIF(nColVlr==0,93,nColVlr)
+			nLin1Ext:=Val(SubStr(SA6->A6_LAYIPMF,5,1))-nLinVlr
+			nCol1Ext:=Val(SubStr(SA6->A6_LAYIPMF,6,2))
+			nLin2Ext:=Val(SubStr(SA6->A6_LAYIPMF,8,1))-Val(SubStr(SA6->A6_LAYIPMF,5,1))
+			nCol2Ext:=Val(SubStr(SA6->A6_LAYIPMF,9,2))
+			nTamExt :=Val(SubStr(SA6->A6_LAYIPMF,23, 2))
+			nTamExt :=IIF(nTamExt==0,95,nTamExt)
+			nLinLoc :=Val(SubStr(SA6->A6_LAYIPMF,11,2))//-Val(SubStr(SA6->A6_LAYIPMF,8,1))
+			nColLoc :=Val(SubStr(SA6->A6_LAYIPMF,13,2))
+			nColDat :=Val(SubStr(SA6->A6_LAYIPMF,15,2))//-Val(SubStr(SA6->A6_LAYIPMF,11,2))
+			nColBco :=Val(SubStr(SA6->A6_LAYIPMF,17,2))
+			nColCta :=Val(SubStr(SA6->A6_LAYIPMF,26,3))
+			lComp   :=(SubStr(SA6->A6_LAYIPMF,28, 1)=="S" .or. SubStr(SA6->A6_LAYIPMF,28, 1)==" ")
+			lMesNum :=(SubStr(SA6->A6_LAYIPMF,29, 1)=="S" .and. SubStr(SA6->A6_LAYIPMF,29, 1)<>" ")
+		Endif
+		lLayOut := .T.
+		nLinVlr :=MyFA480TEST(nColVlr,aDriver)
+
+		If  nLinVlr == 99
+			Return .f.
+		Endif
+
+	Endif
+
+	lRet := ImpcheqOK(cBanco,cAgencia,cConta,lMovBco,cFilAtual,nLayOut,cMunic,aDriver)
+
+Return lRet
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} FR480Grav
+Faz as gravações necessarias após a impressao.
+
+@author    Bruno Sobieski
+@version   1.00
+@since     15/06/2000
+//------------------------------------------------------------------------------------------
+/*/
+Static Function FR480Grav(cBanco,cAgencia,cConta,lMovBco,cFilAtual)
+
+	//TODO gravar na UF2 o flag de cheque impresso
+
+Return .t.
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} FA480TEST
+Teste da emissao do cheque  
+
+@author    Wagner Xavier
+@version   1.00
+@since     14/02/1992
+//------------------------------------------------------------------------------------------
+/*/
+Static Function MyFA480TEST(nColVlr,aDriver)
+
+	Local oDlg
+	Local oFont
+	Local cTextSay := ""
+	Local ni := 1
+	Local nOpca := 0
+	Local nAux := 0
+	LOCAL li:=nLinVlr
+	Local aSays:={}
+	Local aButtons:={}
+
+	Default aDriver		:= ReadDriver()
+
+	AADD(aSays,"Clique no botäo impressora para teste de posicionamento." ) 
+	AADD(aSays, "Antes de iniciar a impressäo, verifique se o formulário continuo" ) 
+	AADD(aSays,"está ajustado. O teste será impresso na coluna do valor." ) 
+	AADD(aSays, "Formulário posicionado corretamente ? " )  
+	AADD(aSays,  "Clique em OK para imprimir o cheque." )  
+	AADD(aButtons,{"OK", {|| nOpca:= 1,oDlg:End()}}) // OK	
+	AADD(aButtons,{"Cancelar", {|| nOpca:= 0, li:=99,oDlg:End()}}) // 
+	AADD(aButtons,{"Imprimir Teste", {|| nOpca:= 0, li:=CKIMP(nColVlr,aDriver)}}) //
+
+	DEFINE FONT oFont NAME "Arial" SIZE 0, -11
+
+	DEFINE MSDIALOG oDlg TITLE "Impressão de Cheque" FROM 0,0 TO  250, 460 OF oMainWnd PIXEL STYLE DS_MODALFRAME
+
+	@ 10,10 TO 90,220 OF oDlg PIXEL
+
+	nAux:=20
+	For ni:=1 to Len(aSays)
+		cTextSay:= "{||'"+aSays[ni]+"'}"
+		oSay := TSay():New( nAux, 20, MontaBlock(cTextSay),oDlg,, oFont, .F., .F., .F., .T.,,, 230, 10, .F., .F., .F., .F., .F. )
+		nAux+= 10
+	Next ni
+
+	nAux := 90
+	For ni:=1 to Len(aButtons)
+		TButton():New(100,nAux,aButtons[ni][1],oDlg,aButtons[ni][2] ,40,12,,oFont,,.T.) //  Ok
+		nAux += 45
+	Next ni
+
+	ACTIVATE MSDIALOG oDlg 
+
+Return li
+
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} CKIMP
+Imprime caracter para teste   
+
+@author    Marcos Patricio
+@version   1.00
+@since     20/12/1995
+//------------------------------------------------------------------------------------------
+/*/
+Static Function CKIMP(nColVlr,aDriver)
+
+	ImpCheqTst(nColVlr,aDriver)
+	__lTeste := .T.
+	
+Return nColVlr
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} Fr480CC
+Verificacao do Banco/Agencia/Conta destino do cheque CPMF das perguntas 12, 13 e 14 estão 
+no SX1
+
+@author    Mauricio Pequim Jr
+@version   1.00
+@since     24/06/2004
+//------------------------------------------------------------------------------------------
+/*/
+Static Function MyFr480CC(nOpcao)
+
+	Local lRet := .T.
+	Local aArea := GetArea()
+
+	If cPaisLoc == "BRA" .and. mv_par08 == 2 .and. ((nOpcao == 1 .and. !Empty(mv_par09) .and. !CarregaSa6(mv_par09)) .or. ;
+		(nOpcao == 2 .and. !Empty(mv_par09+mv_par10) .and. !CarregaSa6(mv_par09,mv_par10)) .or. ;
+		(nOpcao == 3 .and. !Empty(mv_par09+mv_par10+mv_par11) .and. !CarregaSa6(mv_par09,mv_par10,mv_par11)))	
+		lRet := .F.
+	Endif
+
+	RestArea(aArea)
+
+Return lRet
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} ImpCheqOK
+Função para imprimir o cheque oficial
+
+@author    Karen Honda
+@version   1.00
+@since     07/08/2020
+@param cBanco, character, Codigo do banco 
+@param cAgencia, character, Codigo do banco
+@param cConta, character, Codigo do banco
+@param lMovBco, lógico, movimenta banco
+@param cFilAtual, character, filial atual
+@param nLayOut, numerico, 1-cheque normal 2 - CPMF
+@param cMunic, character, nome do municipio
+
+@return lRet, lógico, .T. se gerou o cheque
+
+/*/
+//------------------------------------------------------------------------------------------
+Static Function ImpCheqOK(cBanco as Character,cAgencia as Character,cConta as Character,lMovBco as Logical ,cFilAtual as Character,nLayOut as Numeric,cMunic as Character,aDriver as Array)
+
+	LOCAL cValor as Character
+	LOCAL aMes as Array
+	Local cExtenso as Character
+	Local cExt1 as Character
+	Local cExt2 as Character
+	Local nTamanho as Numeric
+	Local nLoop as Numeric
+	Local nRepete as Numeric
+	LOCAL lFa480Dat as Logical
+	LOCAL cDesc1 as Character
+	LOCAL cDesc2 as Character
+	LOCAL cDesc3 as Character
+	LOCAL cString as Character
+	Local cFormato as Character
+	Local lRet as Logical
+
+	cValor := ""
+
+	aMes := { "janeiro","fevereiro","marco",;   //"Janeiro"###"Fevereiro"###"Marco"
+			"abril","maio","junho",;   //"Abril"###"Maio"###"Junho"
+			"julho","agosto","setembro",;   //"Julho"###"Agosto"###"Setembro"
+			"outubro","novembro","dezembro" }   //"Outubro"###"Novembro"###"Dezembro"
+	cExtenso := "(" + Alltrim(Transform(UF2->UF2_VALOR,PesqPict("UF2","UF2_VALOR",17))) + " " + AllTrim(Extenso( UF2->UF2_VALOR,.F.,1 )) + ")"
+	cExt1 := ""
+	cExt2 := ""
+	nTamanho := 0
+	nLoop := 0
+	nRepete := 0
+	lFa480Dat := ExistBlock("FA480DAT")
+	cDesc1 := "Este programa irá imprimir os Cheques do Banco, através de"  
+	cDesc2 := "formulário pré-impresso."
+	cDesc3 :=""
+	cString :="UF2"
+	cFormato := SuperGetMv("MV_RESETIM", .F., "3")
+	lRet := .F.
+
+	If !__lSetPrint .and. __lFirst
+		wnrel := "FINR480"            //Nome Default do relatorio em Disco
+		wnrel := SetPrint(cString,wnrel,"",@titulo,cDesc1,cDesc2,cDesc3,.F.,"",,"M")
+
+		If nLastKey == 27
+			Return lRet
+		Endif
+
+		If cFormato <> AllTrim(STR(aReturn[4])) 
+			If MsgYesNo("O formato de impressão está diferente da última realizada, será resetado as configurações da impressora (para mais informações acesse o portal do tdn). Deseja continuar?") 
+				lReset := .T.	
+				cFormato :=  AllTrim(STR(aReturn[4]))
+				DbSelectArea("SX6")
+				PutMvPar("MV_RESETIM", cFormato)				
+			Else
+				Return lRet
+			EndIf
+		EndIf
+
+		SetDefault(aReturn,cString)
+
+		If nLastKey == 27
+			Return lRet
+		Endif
+
+		If !( "DEFAULT" $ Upper( __DRIVER ) )
+			SetPrc(000,000)
+		Endif
+
+		If lReset 
+			If GetMv("MV_COMP") == 15
+				@ pRow(),pCol() PSAY &(If(aReturn[4]=1,aDriver[3],aDriver[4]))
+			Else
+				@ pRow(),pCol() PSAY &(aDriver[4])
+			EndIf
+		EndIF
+	EndIf
+
+	// Verifica se o extenso ultrapassa o tamanho de colunas
+	cExt1 := SubStr (cExtenso,1,nTamExt ) // 1.a linha do extenso
+	nLoop := Len(cExt1)
+
+	While .T.
+
+		If Len(cExtenso) == Len(cExt1) .and. Len(cExt1)+nCol1Ext <= nTamExt
+			Exit
+		EndIf
+
+		If SubStr(cExtenso,Len(cExt1),1) == " " .and. Len(cExt1)+nCol1Ext <= nTamExt
+			Exit
+		EndIf
+
+		cExt1 := SubStr( cExtenso,1,nLoop )
+		nLoop --
+		If nLoop <= 0
+			MsgAlert("Erro na configuracao do cheque" + CHR ( 13 ) + "Verifique o tamanho das linhas de extenso") 
+			Return lRet
+		Endif
+	Enddo
+
+	cExt2 := SubStr(cExtenso,Len(cExt1)+1,nTamExt) // 2.a linha do extenso
+	IF Empty(cExt2)
+
+		// Se nao tem 2a. linha de extenso, completa 1a. com * (asterisco)
+		cExt1 += Replicate( "*",nTamExt - Len(cExt1) - nCol1Ext )
+	Else
+		// Se tem, completa a primeira linha com espaços entre as palavras
+		cExt1 := StrTran(cExt1," ","  ",,nTamExt - Len(cExt1) - nCol1Ext + 1)
+	Endif
+	cExt2 += Replicate( "*",nTamExt - Len(cExt2) - nCol2Ext )
+
+	// Imprime o cheque
+	If __lFirst 
+		If __lTeste  // SE FOI IMPRESSO TESTE
+			SetPrc(0,0)
+			@ 0,0 PSAY Chr(27)+Chr(64)
+			If nSalto = 8
+			SetPrc(0,0)
+				@0,0 PSAY Chr(27)+Chr(120)+Chr(48)
+			Endif
+			If lComp .and. !Empty(nComp)
+			SetPrc(0,0)
+				@ 0,0 PSAY CHR(nComp)
+			Endif
+			nLinVlr := PROW()
+		Else	
+			If lComp
+				@nLinVlr, 0 PSAY Chr(27)+Chr(64)
+				@nLinVlr, Pcol() PSAY Chr(27)+Chr(120)+Chr(48)
+				If !Empty(nComp)
+					@nLinVlr,0 PSAY CHR(nComp)
+				Else
+					@nLinVlr,0 PSAY &(If(aReturn[4]=1,aDriver[3],aDriver[4]))
+				EndIf
+			Else
+				@nLinVlr,0 PSAY &(aDriver[4])
+			EndIf
+			@nLinVlr, Pcol() PSAY Chr(27)+Chr(48)
+		Endif
+	Endif
+
+	cSimb  :=GETMV("MV_SIMB1")
+	cValor := "(" + Alltrim(Transform(UF2->UF2_VALOR,PesqPict("UF2","UF2_VALOR",17))) + ")"
+
+	// Ajuste do posicionamento da impressora: 
+	// - compactada: 1 posição 
+	// - sem compactar: 2 posições
+	// - segunda impressão em diante: sem ajuste. 
+	// Lembrete: ajuste apenas no primeiro cheque.
+	__LogPages()
+	If __lFirst
+		If lComp
+		SetPrc(nLinVlr,0)
+			@nLinVlr,nColVlr+1 PSAY cSimb
+		Else
+		SetPrc(nLinVlr,0)
+			@nLinVlr,nColVlr+2 PSAY cSimb
+		Endif
+		__lFirst := .F.
+	Else
+		@nLinVlr,nColVlr PSAY cSimb
+	Endif
+
+	nRepete := pCol()+Len(cValor)+17-Len(cValor) - nTamExt
+
+	If nRepete > 0
+		cValor += Replicate("*",17-Len(cValor)-nRepete)
+	Else
+		cValor += Replicate("*",17-Len(cValor))
+	EndIf
+
+	@nLinVlr,PCOL()             PSAY cValor
+	@Prow()+nLin1Ext,nCol1Ext   PSAY cExt1
+	@Prow()+nLin2Ext,nCol2Ext   PSAY cExt2
+
+	If nLayOut == 1 //Cheque Normal
+		@Prow()+nLinFav ,nColFav    PSAY IIF(cBenef==NIL,UF2->UF2_BENEF,cBenef)
+		nTamanho    :=1+Len(Trim(cMunic))
+		@Prow()+nLinDat,nColVir-nTamanho  PSAY IIF(!Empty(cMunic),Trim(cMunic)," ")
+		@Prow(),nColVir+1           PSAY Day(UF2->UF2_DTINC)  PicTure "99"
+		//Imprime o mes em valor numerico ou por extenso
+		If lMesNum
+			@Prow(),Pcol()+6 PSAY StrZero(Month(UF2->UF2_DTINC),2)
+		Else
+			@Prow(),Pcol()+6 PSAY aMes[Month(UF2->UF2_DTINC)]
+		Endif
+
+		IF nCasas == 1
+			@Prow(),nColAno         PSAY SubStr(Str(Year(UF2->UF2_DTINC),4),4,1)
+		Elseif nCasas == 2
+			@Prow(),nColAno         PSAY SubStr(Str(Year(UF2->UF2_DTINC),4),3,2)
+		Elseif nCasas == 3
+			@Prow(),nColAno         PSAY SubStr(Str(Year(UF2->UF2_DTINC),4),2,3)
+		Else
+			@Prow(),nColAno         PSAY Str(Year(UF2->UF2_DTINC),4)
+		Endif
+	Else
+		@ nLinLoc,nColLoc  PSAY IIF(!Empty(cMunic),AllTrim(cMunic)," ")
+		@ nLinLoc,nColDat	 PSAY SUBSTR(DTOC(UF2->UF2_DTINC),1,6)+Str(Year(UF2->UF2_DTINC),4)
+		@ nLinLoc,nColBco	 PSAY Alltrim(mv_par09)+"-"+AllTrim(mv_par10)
+		@ nLinLoc,nColCta	 PSAY AllTrim(mv_par11)
+	Endif	
+
+	If lFA480DAT
+		ExecBlock("FA480DAT",.F.,.F., {cValor, cExtenso})
+	Endif
+
+	@Prow()+1,0 PSAY " "   // Para descarregar buffer Windows 95
+
+	dbSelectArea("UF2")
+	nLinVlr+=nTamChq
+
+	@nLinVLr,0 PSAY " "		// Para avancar at‚ o fim do cheque
+	SetPrc(nLinVlr,0)
+	Reclock("UF2")
+		UF2->UF2_IMPRES := "S"
+		UF2->UF2_DTIMPR := dDataBase
+	MsUnlock( )
+	lRet	:=	Fr480Grav(cBanco,cAgencia,cConta,lMovBco,cFilAtual)
+
+Return lRet
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} FinalImp
+Função para finalizar a impressão do cheque oficial, exibindo a tela
+
+@author    Karen Honda
+@version   1.00
+@since     07/08/2020
+@param lImprimiu, logico, .T. houve a geração do cheque
+@param lMostraMsg, logico, .T. para exibir mensagem caso tenha erro 
+@param nQtdeChe, numeric, quantidade de cheques impressos
+//------------------------------------------------------------------------------------------
+/*/
+Static Function FinalImp(lImprimiu as Logical, lMostraMsg as Logical, nQtdeChe as Numeric)
+
+	If lImprimiu 
+		@ Prow(), PCol() PSAY Chr(27)+Chr(64)  // (48 = 1/8)  (64 = 1/6)
+		@ Prow(), PCol() PSAY Chr(18)+" "
+	Endif
+		
+	Set Device To Screen
+	dbSelectArea("UF2")
+	UF2->(dbSetOrder(1))
+	dbSelectArea("SA6")
+	SA6->(dbSetOrder(1))
+	Set Filter To
+
+	Set Device To Screen
+	SetPgEject(.F.)     
+
+	If  nQtdeChe > 0 
+		If aReturn[5] = 1
+			Set Printer To
+			Commit
+			Ourspool(wnrel)
+		Endif
+	ElseIf  nQtdeChe == 0 .AND. lMostraMsg
+		MsgAlert("Nenhum cheque foi encontrado para emissão.") 
+	EndIf
+
+	MS_FLUSH()
+
+Return
+
+/*/
+//------------------------------------------------------------------------------------------
+{Protheus.doc} ImpCheqTst
+Função para imprimir o cheque teste para posicionamento
+
+@author    Karen Honda
+@version   1.00
+@since     07/08/2020
+@param nColVlr, numeric, coluna onde será impresso o valor 
+//------------------------------------------------------------------------------------------
+/*/
+Static Function ImpCheqTst(nColVlr as Numeric,aDriver as Array)
+
+	LOCAL cTeste as Character
+	LOCAL li as Numeric
+
+	cTeste := ""
+	li := nLinVlr
+
+	If !__lSetPrint
+		
+		wnrel := "FINR480T"            //Nome Default do relatorio em Disco
+		wnrel := SetPrint("UF2",wnrel,"","Impressão Teste de cheque","Impressão Teste de cheque","","",.F.,"",,"M") //"Impressão Teste de cheque"
+		
+		If nLastKey == 27
+			Return
+		Endif
+		
+		SetDefault(aReturn,"UF2")
+
+		If nLastKey == 27
+			Return
+		Endif
+
+		If !( "DEFAULT" $ Upper( __DRIVER ) )
+			SetPrc(000,000)
+		Endif
+		
+		If GetMv("MV_COMP") == 15
+			@ pRow(),pCol() PSAY &(If(aReturn[4]=1,aDriver[3],aDriver[4]))
+		Else
+			@ pRow(),pCol() PSAY &(aDriver[4])
+		EndIf
+		
+	EndIf	
+
+	__lSetPrint := .F.
+	cTeste := "."
+	If lComp .and. !Empty(nComp)
+		cTeste:= CHR(nComp)+"."
+	Endif
+	@li,00      PSAY cTeste
+	@li,nColVlr PSAY "."
+
+	Set Device To Screen
+	SetPgEject(.F.)     
+
+	If aReturn[5] = 1
+		Set Printer To
+		Ourspool(wnrel)
+	Endif	
+
+	MS_FLUSH()
+
+Return
+
+
+/*/{Protheus.doc} AjustaSX1
+Funcao para criar o grupo de perguntas
+na SX1
+@type function
+@version 1.0 
+@author g.sampaio
+@since 30/01/2021
+@param cPerg, character, grupo de perguntas
+/*/
+Static Function AjustaSX1(cGrupoSX1)
+
+	Local aRegs		:= {}
+
+	Default cGrupoSX1	:= ""
+
+	// verifico se o nome do grupo de pergunta foi passado
+	if !Empty(cGrupoSX1)
+
+		// parametros SX1
+		aAdd(aRegs,{cGrupoSX1,'01','Do Banco ?'          			,'','','mv_ch1','C', TamSx3("UF2_BANCO")[1] , 0, 0,'G','','mv_par01','','','','','','SA6'})
+		aAdd(aRegs,{cGrupoSX1,'02','Da Agencia ?'         			,'','','mv_ch2','C', TamSx3("UF2_AGENCI")[1], 0, 0,'G','','mv_par02','','','','','',''})
+		aAdd(aRegs,{cGrupoSX1,'03','Da Conta ?'         			,'','','mv_ch3','C', TamSx3("UF2_CONTA")[1] , 0, 0,'G','','mv_par03','','','','','',''})
+		aAdd(aRegs,{cGrupoSX1,'04','Do Cheque ?'         			,'','','mv_ch4','C', TamSx3("UF2_NUM")[1]   , 0, 0,'G','','mv_par04','','','','','',''})
+		aAdd(aRegs,{cGrupoSX1,'05','Ate o Cheque ?'         		,'','','mv_ch5','C', TamSx3("UF2_NUM")[1]   , 0, 0,'G','','mv_par05','','','','','',''})
+		aAdd(aRegs,{cGrupoSX1,'06','Data Inc. Inicial ?'         	,'','','mv_ch6','D', 8   					, 0, 0,'G','','mv_par06','','','','','',''})
+		aAdd(aRegs,{cGrupoSX1,'07','Data Inc. Final ?'         		,'','','mv_ch7','D', 8   					, 0, 0,'G','','mv_par07','','','','','',''})
+		aAdd(aRegs,{cGrupoSX1,'08','Layout do Cheque ?'         	,'','','mv_ch8','N', 1   					, 0, 1,'C','','mv_par08','Padrao','CPMF','','','',''})
+		aAdd(aRegs,{cGrupoSX1,'09','Banco Destino (Tipo CPMF) ?'    ,'','','mv_ch9','C', TamSx3("UF2_BANCO")[1] , 0, 0,'G','','mv_par09','','','','','','SA6'})
+		aAdd(aRegs,{cGrupoSX1,'10','Agencia Destino (Tipo CPMF) ?'  ,'','','mv_chA','C', TamSx3("UF2_AGENCI")[1], 0, 0,'G','','mv_par10','','','','','',''})
+		aAdd(aRegs,{cGrupoSX1,'11','Conta Destino (Tipo CPMF) ?'    ,'','','mv_chB','C', TamSx3("UF2_CONTA")[1] , 0, 0,'G','','mv_par11','','','','','',''})
+
+		// cria os dados da SX1
+		CriaSX1( aRegs )
+
+	endIf
+
+Return(Nil)
+
+Static Function CriaSX1(aSX1)
+
+	Local aArea 	:= GetArea()
+	Local nI		:= 0
+
+	Default aSX1	:= {}
+
+	dbSelectArea('SX1')
+	SX1->(dbSetOrder(1))
+
+	BEGIN TRANSACTION
+
+		// percorro os parametros a serem criados
+		For nI := 1 to Len(aSX1)
+
+			If SX1->( RecLock('SX1',Iif(!SX1->(DbSeek(PadR(aSX1[nI][01],10)+aSX1[nI][02])),.T.,.F.)) )
+
+				Replace SX1->X1_GRUPO       With aSX1[nI][01]
+				Replace SX1->X1_ORDEM       With aSX1[nI][02]
+				Replace SX1->X1_PERGUNT    With aSX1[nI][03]
+				Replace SX1->X1_PERSPA  	With aSX1[nI][03]
+				Replace SX1->X1_PERENG  	With aSX1[nI][03]
+				Replace SX1->X1_PERSPA      With aSX1[nI][04]
+				Replace SX1->X1_PERENG      With aSX1[nI][05]
+				Replace SX1->X1_VARIAVL     With aSX1[nI][06]
+				Replace SX1->X1_TIPO        With aSX1[nI][07]
+				Replace SX1->X1_TAMANHO     With aSX1[nI][08]
+				Replace SX1->X1_DECIMAL     With aSX1[nI][09]
+				Replace SX1->X1_PRESEL      With aSX1[nI][10]
+				Replace SX1->X1_GSC         With aSX1[nI][11]
+				Replace SX1->X1_VALID       With aSX1[nI][12]
+				Replace SX1->X1_VAR01       With aSX1[nI][13]
+				Replace SX1->X1_DEF01       With aSX1[nI][14]
+				Replace SX1->X1_DEFSPA1     With aSX1[nI][14]
+				Replace SX1->X1_DEFENG1     With aSX1[nI][14]
+				Replace SX1->X1_DEF02       With aSX1[nI][15]
+				Replace SX1->X1_DEFSPA2     With aSX1[nI][15]
+				Replace SX1->X1_DEFENG2     With aSX1[nI][15]
+				Replace SX1->X1_DEF03       With aSX1[nI][16]
+				Replace SX1->X1_DEFSPA3     With aSX1[nI][16]
+				Replace SX1->X1_DEFENG3     With aSX1[nI][16]
+				Replace SX1->X1_DEF04       With aSX1[nI][17]
+				Replace SX1->X1_DEFSPA4     With aSX1[nI][17]
+				Replace SX1->X1_DEFENG4     With aSX1[nI][17]
+				Replace SX1->X1_DEF05       With aSX1[nI][18]
+				Replace SX1->X1_DEFSPA5     With aSX1[nI][18]
+				Replace SX1->X1_DEFENG5     With aSX1[nI][18]
+				Replace SX1->X1_F3          With aSX1[nI][19]
+				SX1->( MsUnlock() )
+
+			Else
+
+				Help('',1,'REGNOIS')
+				SX1->( DisarmTransaction() )
+
+			Endif
+
+		Next nI
+
+	END TRANSACTION
+
+	RestArea( aArea )
+
+Return(Nil)

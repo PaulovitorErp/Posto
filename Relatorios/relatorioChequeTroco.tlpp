@@ -1,0 +1,149 @@
+#include "protheus.ch"
+#include "topconn.ch"
+
+/*/{Protheus.doc} relatorioChequeTroco
+Relatório Itens em Estoque que não possuem Estoque de Exposição
+@type function
+@author Fabricio Ferreira
+@since 06/09/2023
+@version 1.0
+/*/
+User Function relatorioChequeTroco()
+
+	Local oReport
+	Private lChTrOp 	:= SuperGetMV("MV_XCHTROP",,.F.) //Controle de Cheque Troco por Operador (default .F.)
+
+	oReport:= ReportDef()
+	oReport:PrintDialog()
+
+Return
+
+Static Function ReportDef()
+
+	Local oReport
+	Local oSection1
+	Local cTitle    := "Relatorio Cheque Troco"
+	Local cAliasQry := GetNextAlias()
+
+	oReport:= TReport():New("relatorioChequeTroco",cTitle,"relatorioChequeTroco",{|oReport| PrintReport(oReport,cAliasQry)},"Este relatório apresenta uma relação de cheques troco.")
+	oReport:SetPortrait()
+	oReport:HideParamPage()
+	oReport:SetUseGC(.F.)
+
+	U_uAjusSx1("relatorioChequeTroco","01","Banco ?","","","mv_ch1","C",TamSX3("UF2_BANCO")[1],0,0,"G","","SA6","","","mv_par01","","",""," ","","","","","","","","","","","","",{"", ""}, {"",""}, {"",""})
+	U_uAjusSx1("relatorioChequeTroco","02","Agencia ?","","","mv_ch2","C",TamSX3("UF2_AGENCI")[1],0,0,"G",""," ","","","mv_par02","","","","","","","","","","","","","","","","",{"", ""}, {"",""}, {"",""})
+	U_uAjusSx1("relatorioChequeTroco","03","Conta ?","","","mv_ch3","C",TamSX3("UF2_CONTA")[1],0,0,"G",""," ","","","mv_par03","","",""," ","","","","","","","","","","","","",{"", ""}, {"",""}, {"",""})
+	U_uAjusSx1("relatorioChequeTroco","04","Do cheque ?","","","mv_ch4","C",TamSX3("UF2_NUM")[1],0,0,"G",""," ","","","mv_par04","","","","","","","","","","","","","","","","",{"", ""}, {"",""}, {"",""})
+	U_uAjusSx1("relatorioChequeTroco","05","Até o cheque ?","","","mv_ch5","C",TamSX3("UF2_NUM")[1],0,0,"G",""," ","","","mv_par05","","",""," ","","","","","","","","","","","","", {"", ""}, {"",""}, {"",""})
+	U_uAjusSx1("relatorioChequeTroco","06","Da Dt inclusão ?","","","mv_ch6","D",TamSX3("UF2_DTINC")[1],0,0,"G",""," ","","","mv_par06","","","","","","","","","","","","","","","","",{"", ""}, {"",""}, {"",""})
+	U_uAjusSx1("relatorioChequeTroco","07","Até a Dt inclusão ?","","","mv_ch7","D",TamSX3("UF2_DTINC")[1],0,0,"G",""," ","","","mv_par07","","",""," ","","","","","","","","","","","","", {"", ""}, {"",""}, {"",""})
+
+	Pergunte(oReport:GetParam(),.F.)
+
+	oSection1 := TRSection():New(oReport,"Cheques Troco",{cAliasQry})
+	oSection1:SetHeaderPage(.F.)
+	oSection1:SetHeaderSection(.T.)
+
+	TRCell():New(oSection1, "STATUS"    , cAliasQry, "Status"    ,                            , 20)
+	TRCell():New(oSection1, "UF2_BANCO" , cAliasQry, "Banco"     ,                            , TamSX3("UF2_BANCO")[1]+1)
+	TRCell():New(oSection1, "UF2_AGENCI", cAliasQry, "Agencia"   ,                            , TamSX3("UF2_AGENCI")[1]+1)
+	TRCell():New(oSection1, "UF2_CONTA" , cAliasQry, "Conta"     ,                            , TamSX3("UF2_CONTA")[1]+1)
+	TRCell():New(oSection1, "UF2_NUM"   , cAliasQry, "Num Cheque",                            , TamSX3("UF2_NUM")[1]+1)
+	TRCell():New(oSection1, "UF2_DTINC" , cAliasQry, "Dt. Inc."  ,                            , TamSX3("UF2_DTINC")[1]+1)
+	TRCell():New(oSection1, "UF2_VALOR" , cAliasQry, "Valor"     , PesqPict("UF2","UF2_VALOR"), TamSX3("UF2_VALOR")[1]+1)
+	TRCell():New(oSection1, "UF2_IMPRES", cAliasQry, "Impresso?" ,                            , 4 ) //SIM/NAO
+	TRCell():New(oSection1, "UF2_CODCX" , cAliasQry, "Operador"  ,                         	  , TamSX3("UF2_CODCX")[1]+1)
+	TRCell():New(oSection1, "UF2_PDV"   , cAliasQry, "PDV"       ,                            , TamSX3("UF2_PDV")[1]+1)
+	TRCell():New(oSection1, "UF2_DOC"   , cAliasQry, "Documento" ,                            , TamSX3("UF2_DOC")[1]+TamSX3("UF2_SERIE")[1]+3)
+	TRCell():New(oSection1, "UF2_DATAMO", cAliasQry, "Data Entrg.",                           , TamSX3("UF2_DATAMO")[1]+1)
+	TRCell():New(oSection1, "E5_DATA"   , cAliasQry, "Data Baixa",                            , TamSX3("E5_DATA")[1]+1)
+	TRCell():New(oSection1, "E5_RECONC"	, cAliasQry, "Conciliado?" ,                          , 4 ) //SIM/NAO
+
+Return(oReport)
+
+Static Function PrintReport(oReport,cAliasQry)
+	
+	Local oSection1 := oReport:Section(1)
+	Local cQry      := ""
+	Local cSGBD	:= AllTrim(Upper(TcGetDb())) // -- Banco de dados atulizado (Para embientes TOP) 			 	
+
+	If Empty(Select("SM0"))
+		OpenSM0(cEmpAnt)
+	EndIf
+
+	oSection1:Init()
+
+	cQry += " SELECT "
+	cQry += " CASE "
+	cQry += "   WHEN ISNULL(SE5.E5_NUMCHEQ, ' ') = UF2.UF2_NUM THEN 'Baixado (pago)'"
+	cQry += "   WHEN UF2.UF2_XGERAF = 'G' OR UF2.UF2_STATUS = '2' THEN 'Entregue a Cliente'"
+	cQry += "   WHEN UF2.UF2_STATUS = '1' AND UF2.UF2_CODCX = ' ' THEN 'Em Aberto'"
+	if lChTrOp
+		cQry += "   WHEN UF2.UF2_STATUS = '1' AND UF2.UF2_CODCX != ' ' THEN 'Remessa Operador/Caixa'"
+	else
+		cQry += "   WHEN UF2.UF2_STATUS = '1' AND UF2.UF2_PDV != ' ' THEN 'Remessa PDV'"
+	endif
+	cQry += "   WHEN UF2.UF2_STATUS = '3' THEN 'Inutilizado'"
+	cQry += "   ELSE 'Indefinido'"
+	cQry += " END STATUS"
+	cQry += " , UF2_BANCO, UF2_AGENCI, UF2_CONTA, UF2_NUM, UF2_VALOR, UF2_PDV, UF2_CODCX, UF2_XPDV, UF2_XOPERA"
+	cQry += " , UF2_DOC, UF2_SERIE, UF2_CLIENT, UF2_LOJACL, SA1.A1_NOME, UF2_DATAMO, UF2_XHORA, UF2_DTINC"
+	cQry += " , ISNULL(SE5.E5_DATA, ' ') E5_DATA, ISNULL(SE5.E5_RECONC, ' ') E5_RECONC"
+	cQry += " , UF2_IMPRES, UF2_DTIMPR, UF2_DTREM"
+	cQry += " FROM "+RetSQLName("UF2")+" "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" UF2"
+	cQry += " LEFT JOIN ("
+	cQry += " 	SELECT E5_BANCO, E5_AGENCIA, E5_CONTA, E5_NUMCHEQ, E5_DATA, E5_RECONC"
+	cQry += " 	FROM "+RetSQLName("SE5")+" "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" SE5 "
+	cQry += " 	WHERE E5_FILIAL = "+ValToSQL(xFilial("SE5"))
+	cQry += " 	AND E5_TIPODOC IN ('CA','CH') "
+	cQry += " 	AND E5_NUMCHEQ != ' '"
+	cQry += " 	AND E5_RECPAG = 'P' "
+	cQry += " 	AND E5_SITUACA <> 'C'"
+	cQry += " 	and SE5.D_E_L_E_T_ = ' ' "
+	cQry += " 	GROUP BY E5_BANCO, E5_AGENCIA, E5_CONTA, E5_NUMCHEQ, E5_DATA, E5_RECONC	"
+	cQry += " ) SE5 ON SE5.E5_BANCO = UF2.UF2_BANCO AND SE5.E5_AGENCIA = UF2.UF2_AGENCI AND SE5.E5_CONTA = UF2.UF2_CONTA AND SE5.E5_NUMCHEQ = UF2.UF2_NUM"
+	cQry += " LEFT JOIN "+RetSQLName("SA1")+" "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" SA1 ON SA1.A1_FILIAL = '"+xFilial("SA1")+"' AND SA1.A1_COD = UF2_CLIENT AND SA1.A1_LOJA = UF2_LOJACL AND SA1.D_E_L_E_T_ = ' '"
+	cQry += " WHERE UF2.D_E_L_E_T_ = ' '"
+	cQry += " AND UF2.UF2_BANCO = "+ValToSQL(MV_PAR01)
+	cQry += " AND UF2.UF2_AGENCI = "+ValToSQL(MV_PAR02)
+	cQry += " AND UF2.UF2_CONTA = "+ValToSQL(MV_PAR03)
+	cQry += " AND UF2.UF2_NUM BETWEEN "+ValToSQL(MV_PAR04)+" AND "+ValToSQL(MV_PAR05)
+	cQry += " AND UF2.UF2_DTINC BETWEEN "+ValToSQL(DTOS(MV_PAR06))+" AND "+ValToSQL(DTOS(MV_PAR07))
+	cQry := ChangeQuery(cQry)
+	
+	MPSysOpenQuery(cQry,cAliasQry)
+
+	While !oReport:Cancel() .And. (cAliasQry)->(!EOF())
+
+		oReport:IncMeter()
+		If oReport:Cancel()
+			Exit
+		EndIf
+
+		oSection1:Cell("STATUS"):SetValue((cAliasQry)->STATUS)
+		oSection1:Cell("UF2_BANCO"):SetValue((cAliasQry)->UF2_BANCO)
+		oSection1:Cell("UF2_AGENCI"):SetValue((cAliasQry)->UF2_AGENCI)
+		oSection1:Cell("UF2_CONTA"):SetValue((cAliasQry)->UF2_CONTA)
+		oSection1:Cell("UF2_NUM"):SetValue((cAliasQry)->UF2_NUM)
+		oSection1:Cell("UF2_DTINC"):SetValue(SToD((cAliasQry)->UF2_DTINC))
+		oSection1:Cell("UF2_VALOR"):SetValue((cAliasQry)->UF2_VALOR)
+		oSection1:Cell("UF2_IMPRES"):SetValue(iif((cAliasQry)->UF2_IMPRES=="S","SIM","NÃO"))
+		if lChTrOp
+			oSection1:Cell("UF2_CODCX"):SetValue((cAliasQry)->UF2_CODCX)
+			oSection1:Cell("UF2_PDV"):SetValue((cAliasQry)->UF2_XPDV)
+		else
+			oSection1:Cell("UF2_CODCX"):SetValue((cAliasQry)->UF2_XOPERA)
+			oSection1:Cell("UF2_PDV"):SetValue((cAliasQry)->UF2_PDV)
+		endif
+		oSection1:Cell("UF2_DOC"):SetValue((cAliasQry)->UF2_DOC + "/" + (cAliasQry)->UF2_SERIE)
+		oSection1:Cell("UF2_DATAMO"):SetValue(SToD((cAliasQry)->UF2_DATAMO))
+		oSection1:Cell("E5_DATA"):SetValue(SToD((cAliasQry)->E5_DATA))
+		oSection1:Cell("E5_RECONC"):SetValue(iif(!empty((cAliasQry)->E5_RECONC),"SIM","NÃO"))
+
+		oSection1:PrintLine()
+		(cAliasQry)->(dbSkip())
+	EndDo
+
+	oSection1:Finish()
+
+Return(.T.)
