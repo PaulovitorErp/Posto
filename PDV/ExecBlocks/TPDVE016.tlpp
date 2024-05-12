@@ -1,0 +1,489 @@
+#include "protheus.ch"
+#include "restful.ch"
+
+/*/
+INTEGRACAO PROMOFLEX
+
+Necessario
+campos:
+	L1_XUSAPRO
+	L1_XCODPRO
+	L1_XCHVPRO
+	L1_XDESPRO
+	L1_XINTPRO
+
+parametro
+	MV_XURLPRO = URL (https://api.promoflex.com.br)
+	MV_XCODPRO = PATH validacodigo (/api/v1/integracao/validarcodigo/lista)
+	MV_XPOSPRO = PATH pos venda (/api/v1/integracao/posvenda)
+	MV_XCANPRO = PATH pos venda (/api/v1/integracao/posvenda)
+	MV_XTKNPRO = TOKEN ZGVtbzpkNzliNTE4NjNjM2EyOWEwNGUxZWFkNWI0ZDRlMWI3Ng==
+/*/
+
+User Function TPDVE016(nAction, xPar1, xPar2)
+
+	Local xRet
+
+	if nAction == 1
+		xRet := fUsrVldPro()
+	elseif nAction == 2
+		xRet := fPromoDesc(xPar1,xPar2)
+	elseif nAction == 3
+		xRet := fPromoFlex()
+	elseif nAction == 4
+		xRet := fPromoCanc()
+	elseif nAction == 5 
+		xRet := fGetVoucher()
+	endif
+
+Return xRet
+
+
+/*/
+	Funcao usada pra pegar o codigo do voucher
+/*/
+Static Function fUsrVldPro()
+
+	if FWAlertYesNo("Venda com PromoFlex?", "PromoFlex")
+		fGetVoucher()
+	endIf
+
+Return 
+
+/*/
+	Funcao usada no cancelamento de venda pe frtCancela
+/*/
+Static function fPromoCanc()
+
+	Local cChave 	:= ""
+	Local cPathPos		:= superGetMv("MV_XCANPRO",.F.,"/api/v1/integracao/cancelarvenda")
+
+	IF Empty(SL1->L1_XCHVPRO)
+		RETURN
+	Else
+		cChave := SL1->L1_XCHVPRO
+	EndIf
+
+	
+	IF !fSendCanc(cPathPos, cChave)
+		return
+	EndIf
+
+	SL1->(Reclock("SL1", .F.))
+		SL1->L1_XINTPRO := 'C'
+	SL1->(MSUnlock())
+
+return
+
+/*/
+	Funcao que vai executar o processo no fim da venda PE LJ7002
+/*/
+static function fPromoFlex()
+	
+	local cPath 	:= superGetMv("MV_XPOSPRO",.F.,"/api/v1/integracao/posvenda")
+	local cChave	:= SL1->L1_XCHVPRO
+
+	IF fSendPos(cPath, cChave)	
+
+		RecLock("SL1",.F.)
+			SL1->L1_XINTPRO := "S"
+		SL1->(MsUnLock())
+
+		//FWAlertSuccess("Venda: "+SL1->L1_NUM+", registrada com sucesso!"+CRLF+"Chave: "+cChave, "PromoFlex (Pos Venda)")
+
+	ENDIF
+
+return
+
+/*/
+	Funcao para trazer o desconto permitido na venda PE LJ7107
+/*/
+Static function fPromoDesc(oSay,oProdutos)
+	
+	local aJPDV := {}
+	local cPath := superGetMv("MV_XCODPRO",.F.,"/api/v1/integracao/validarcodigo/lista")
+	local cCodigo	:= ""
+	local cChave	:= ""
+	local nDesc		:= 0
+	Local oRest
+
+	While .T.
+		cChave	:= ""
+		nDesc	:= 0
+		cCodigo	:= STDGPBasket("SL1","L1_XCODPRO")
+
+		oSay:SetText("Carregando dados da venda.")
+		aJPDV := fGetPDV(cCodigo,oProdutos)
+
+		oSay:SetText("Enviando venda a PromoFlex.")
+		oRest := fSendPromo(cPath, aJPDV)
+
+		oSay:SetText("Gravando desconto")
+		if fAtuDesc(oRest, @cChave, @nDesc) //se deu certo o retorno, saio do laço
+			EXIT
+		endif
+		if !fGetVoucher()
+			Return 0
+		endif
+	Enddo
+
+	STDSPBasket("SL1","L1_XCHVPRO",cChave)
+	STDSPBasket("SL1","L1_XDESPRO",nDesc)
+	
+return nDesc
+
+/*/
+	Tela UX para pegar o codigo do voucher
+/*/
+Static Function fGetVoucher()
+
+	Local oBmpQR
+	Local oBmpLeg
+	Local oBtnOk
+	Local oBtnCanc
+	Local oGetCod
+	Local cCodigo := space(14) //verificar o tamanho do codigo se eh fixo
+	Local oGroup1
+	Local oGroup2
+	Local lRet := .F.
+
+	Local oAarial_16 := tfont():new("Arial",,16,,.t.)
+
+	//reseto sempre que chamar a tela
+	STDSPBasket("SL1","L1_XUSAPRO","N")
+	STDSPBasket("SL1","L1_XINTPRO","")
+	STDSPBasket("SL1","L1_XCODPRO","")
+
+	DEFINE MSDIALOG oDlg TITLE "Integração Promoflex" FROM 000, 000  TO 500, 380 COLORS 999, 16777215 PIXEL
+
+	@ 005, 014 GROUP oGroup1 TO 160, 177 OF oDlg COLOR 0, 16777215 PIXEL
+	//@ 007, 017 BITMAP oBmpQR SIZE 165, 165 OF oDlg FILENAME "promoflex\imgs\QrCodeDecio.bmp" NOBORDER PIXEL
+	@ 007, 017 BITMAP oBmpQR SIZE 165, 165 OF oDlg RESOURCE "QRCODEPROMOFLEX.bmp" NOBORDER PIXEL
+	@ 185, 014 GROUP oGroup2 TO 224, 177 PROMPT "Voucher ou CPF/CNPJ" OF oDlg COLOR 0, 16777215 PIXEL
+	@ 198, 021 MSGET oGetCod VAR cCodigo SIZE 136, 015 FONT oAarial_16 OF oGroup2 COLORS 0, 16777215 VALID fVldCodigo(@cCodigo, @oGetCod, @oBmpLeg, @oBtnOk, @oBtnCanc, @oDlg) PIXEL
+	@ 203, 160 BITMAP oBmpLeg SIZE 30, 30  OF oGroup2 NOBORDER PIXEL
+	@ 231, 014 BUTTON oBtnOk PROMPT "&Ok" SIZE 039, 014 OF oDlg PIXEL
+	@ 231, 139 BUTTON oBtnCanc PROMPT "&Cancelar" SIZE 039, 014 OF oDlg PIXEL
+
+	//oGetCod:cPlaceHold("Digite o Codigo")
+	oBtnOk:lActive := .F.
+
+	oBtnOk:bLClicked := {||  FWMsgRun(, {|oSay| lRet := fVldVoucher(cCodigo, oGetCod, @oBmpLeg, @oBtnOk, @oBtnCanc, @oDlg, oSay) }, "Validando", "Aguarde enquanto estamos validando o codigo: " + cCodigo ) }
+
+	oBtnCanc:bLClicked := {|| oDlg:End()}
+
+	oBmpLeg:setBmp("BR_AMARELO")
+	
+	ACTIVATE MSDIALOG oDlg CENTERED
+
+Return lRet
+
+/*/
+	Funcao de uso da tela pra validacao e controle de tela
+/*/
+static function fVldCodigo(cCodigo, oGetCod, oBmpLeg, oBtnOk, oBtnCanc, oDlg)
+	local lRet := .F.
+
+	if !Empty(cCodigo)
+		oBtnCanc:cCaption := "&Limpar"
+		oBtnCanc:bLClicked := {|| fLimpaCodigo(@cCodigo, @oGetCod, @oBmpLeg, @oBtnOk, @oBtnCanc, @oDlg) }
+
+		if len(alltrim(cCodigo))==11 .or. len(alltrim(cCodigo))==14 .OR. alltrim(cCodigo)=="1" //.or. len(alltrim(cCodigo))== "tamanho padarao do voucher"
+			oBtnOk:lActive := .T.
+			oGetCod:lActive := .F.
+			oBmpLeg:SetBmp("BR_VERDE")
+			oBtnOk:SetFocus()
+		else
+			oBmpLeg:SetBmp("BR_VERMELHO")
+			oBtnOk:lActive := .F.
+			oGetCod:lActive := .T.
+		endIf
+	else
+		oBmpLeg:SetBmp("BR_VERMELHO")
+		oBtnOk:lActive := .F.
+		oGetCod:lActive := .T.
+		oBtnCanc:cCaption := "&Cancelar"
+		oBtnCanc:bLClicked := {|| oDlg:End() }
+	endIf
+
+	lRet := .T.
+
+	oDlg:Refresh()
+return lRet
+
+/*/
+	Funcao que limpa dados da tela e restaura os dados
+/*/
+static function fLimpaCodigo(cCodigo, oGetCod, oBmpLeg, oBtnOk, oBtnCanc, oDlg)
+	cCodigo := space(14)
+	oGetCod:lActive := .T.
+	oGetCod:Buffer := cCodigo
+	oBmpLeg:setBmp("BR_AMARELO")
+
+	oBtnCanc:cCaption := "&Cancelar"
+	oBtnCanc:bLClicked := {|| oDlg:End() }
+return
+
+/*/
+	1-Pegar dados da venda
+	1.1-Montar o Json de comunicacao
+	3-Enviar comunicacao com o promoflex
+	4-Receber o retorno - informar falha em case disso
+	5-Atualizar venda para exibicao
+/*/
+static function fVldVoucher(cCodigo, oGetCod, oBmpLeg, oBtnOk, oBtnCanc, oDlg, oSay)
+	local lRet    := .T.
+
+	oSay:SetText("Marcando pedido como PromoFlex")
+	STDSPBasket("SL1","L1_XUSAPRO","S")
+	STDSPBasket("SL1","L1_XINTPRO","N")
+
+	oSay:SetText("Grava Chave PromoFlex")
+	STDSPBasket("SL1","L1_XCODPRO",cCodigo)
+  
+	oDlg:End()
+return lRet
+
+/*/
+	Funcao para validacao do retorno da comunicacao
+/*/
+Static Function fAtuDesc(oRest, cChave, nDesc)
+
+	Local cMsg := ""
+	Local oJAux := JsonObject():New()
+	Local nX  := 1
+
+	Default cChave := ""
+	Default nDesc := 0
+
+	oJAux:FromJson(oRest:GetResult())
+
+	If oRest:GetHTTPCode() <> "200"
+		cMsg := DecodeUtf8( oJAux:GetJsonText("erros"), "cp1252" )
+		FWAlertInfo(cMsg, "Retorno Promoflex")
+		STDSPBasket("SL1","L1_XUSAPRO","N")
+		STDSPBasket("SL1","L1_XINTPRO","")
+		STDSPBasket("SL1","L1_XCODPRO","")
+		return .F.
+	EndIf
+
+	For nX := 1 to Len(oJAux)
+		nDesc  += oJAux[nX]['valorDescontoTotal']
+		cChave := oJAux[nX]['chaveAutenticacao']
+	Next
+
+Return !Empty(cChave)
+
+/*/
+	Funcao responsavel por montar o array com os dados para montagem do json e para pegar o retorno de gravacao
+/*/
+Static Function fGetPDV(cCodigo,oProdutos)
+	Local oJItem  	:= Nil
+	Local aPDV   	:= {}
+	Local nX 		:= 0
+	Local nPosProd  := 0
+	Local aProdPromo := {}
+
+	default cCodigo := "01665631619"
+
+	if oProdutos:Length() == 1
+		oProdutos:GoLine(nX)
+		if Empty(oProdutos:GetValue("L2_PRODUTO"))
+			return aPDV
+		endIf
+	endIf
+
+	//TODO: DEIXADO CHUMBADO PROVISORIAMENTE PARA DECIO OS CODIGOS DE PRODUTO
+	aadd(aProdPromo,{"010200000000001","ETANOL COMUM"					,"1"})
+	aadd(aProdPromo,{"010300000000001","OLEO DIESEL B S10 - COMUM"		,"117940"})
+	aadd(aProdPromo,{"010300000000005","OLEO DIESEL B S500 COMUM"		,"124084"})
+	aadd(aProdPromo,{"010300000000007","OLEO DIESEL B S10 ADITIVADO"	,"127524"})
+	aadd(aProdPromo,{"010100000000002","GASOLINA PETROBRAS GRID"		,"127528"})
+	aadd(aProdPromo,{"010100000000001","GASOLINA C COMUM"				,"5"})
+
+	For nX := 1 To oProdutos:Length()
+		If !oProdutos:IsDeleted(nX)
+			oProdutos:GoLine(nX)
+
+			if (nPosProd:=aScan(aProdPromo, {|x| Alltrim(x[1]) == AllTrim(oProdutos:GetValue("L2_PRODUTO")) })) > 0
+
+				oJItem := JsonObject():new()
+
+				oJItem['codigoColaborador']	                 := RetCodUsr()
+				oJItem['nomeColaborador']	                 := U_MYNOCHAR(Upper(Alltrim(USRFULLNAME(RETCODUSR()))), "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ")
+				oJItem['codigoValidacao']	                 := allTrim(cCodigo)
+				oJItem['valorVenda']		                 := oProdutos:GetValue("L2_VLRITEM")
+				oJItem['quantidade']		                 := oProdutos:GetValue("L2_QUANT")
+				oJItem['codigoEmpresa']	                     := SM0->M0_CGC
+				oJItem['identificadorExternoProduto']	     := aProdPromo[nPosProd][3] //oProdutos:GetValue("L2_PRODUTO")
+				oJItem['identificadorExternoFormaPagamento'] := "1"
+				oJItem['descricaoFormaPagamento']		     := "Dinheiro"
+
+				aadd(aPDV, oJItem)
+			endif
+		endif
+	next
+
+return aPDV
+
+/*/
+	Envio para validacao de codigo
+/*/
+static function fSendPromo(cPath, aJPDV)
+	Local aHeader   := {}
+	Local oRest     := Nil
+	Local cRet      := ""
+	Local cJson     := ""
+	Local cUrl      := superGetMv("MV_XURLPRO",.F.,"https://api.promoflex.com.br")   //"https://promoflex-pdv-api.azurewebsites.net" //parametro
+	Local cToken    := superGetMv("MV_XTKNPRO",.F.,"ZGVtbzpkNzliNTE4NjNjM2EyOWEwNGUxZWFkNWI0ZDRlMWI3Ng==") //parametro
+	Local nX        := 0
+
+	Local cLog      := ""
+
+	oRest := FwRest():New(cUrl)
+	oRest:SetPath(cPath)
+
+	cJson := "["+CRLF
+	for nX := 1 to len(aJPDV)
+		cJson += aJPDV[nX]:toJson()+CRLF
+		if nX <> len(aJPDV)
+			cJson += ", "+CRLF
+		endIf
+	next
+	cJson += "]"+CRLF
+
+	MemoWrite("\PromoFlex\logs\json_"+STDGPBasket("SL1","L1_NUM")+".log", cJson)
+
+	oRest:SetPostParams(cJson)
+
+	aAdd(aHeader, "Content-Type: application/json")
+	aAdd(aHeader, "Authorization: Basic "+cToken)
+
+	cLog := "URL: "+cUrl+CRLF
+	cLog += "PATH: "+cPath+CRLF
+	cLog += "HEADERS: "+aHeader[1]+CRLF
+	cLog += "HEADERS: "+aHeader[2]+CRLF
+	cLog += "BODY: "+CRLF+cJson+CRLF
+
+	MemoWrite("\PromoFlex\logs\VALIDACODIGO_ENVIO_"+DtoS(Date())+"_"+StrTran(Time(),":","_")+".log", cLog)
+
+	If (oRest:Post(aHeader))
+		cRet := oRest:GetResult()
+	Else
+		cRet := oRest:GetLastError()
+	EndIf
+	
+	//cLog := oRest:GetHTTPCode()+CRLF
+	xAux := oRest:GetHTTPCode()
+	cLog := iif(valtype(xAux)=="N",cValToChar(xAux),iif(cValToChar(xAux)=="C",xAux,""))+CRLF
+	cLog += oRest:GetLastError()+CRLF
+	cLog += oRest:GetResult()+CRLF
+
+	MemoWrite("\PromoFlex\logs\VALIDACODIGO_RETORNO_"+DtoS(Date())+"_"+StrTran(Time(),":","_")+".log", cLog)
+
+return oRest
+
+/*/
+	Envio de posvenda
+/*/
+static function fSendPos(cPath, cChave)
+	Local aHeader   := {}
+	Local oRest     := Nil
+	Local cRet      := ""
+	Local cJson     := ""
+	Local cUrl      := superGetMv("MV_XURLPRO",.F.,"https://api.promoflex.com.br")  //"https://promoflex-pdv-api.azurewebsites.net" 
+	Local cToken    := superGetMv("MV_XTKNPRO",.F.,"ZGVtbzpkNzliNTE4NjNjM2EyOWEwNGUxZWFkNWI0ZDRlMWI3Ng==") 
+	
+	Local cLog      := ""
+
+	Local lRet		:= .T.
+  
+ 	cJson += '{"chaveAutenticacao": "'+cChave+'"}'
+ 
+	oRest := FwRest():New(cUrl)
+	oRest:SetPath(cPath)
+
+	oRest:SetPostParams(cJson)
+
+	aAdd(aHeader, "Content-Type: application/json")
+	aAdd(aHeader, "Authorization: Basic "+cToken)
+
+	cLog := "URL: "+cUrl+CRLF
+	cLog += "PATH: "+cPath+CRLF
+	cLog += "HEADERS: "+aHeader[1]+CRLF
+	cLog += "HEADERS: "+aHeader[2]+CRLF
+	cLog += "BODY: "+CRLF+cJson+CRLF
+
+	MemoWrite("\PromoFlex\logs\POSVENDA_ENVIO_"+DtoS(Date())+"_"+StrTran(Time(),":","_")+".log", cLog)
+
+	If (oRest:Post(aHeader))
+		cRet := oRest:GetResult()
+	Else
+		cRet := oRest:GetLastError()
+	EndIf
+
+	//cLog := oRest:GetHTTPCode()+CRLF
+	xAux := oRest:GetHTTPCode()
+	cLog := iif(valtype(xAux)=="N",cValToChar(xAux),iif(cValToChar(xAux)=="C",xAux,""))+CRLF
+	cLog += oRest:GetLastError()+CRLF
+	cLog += oRest:GetResult()+CRLF
+
+	MemoWrite("\PromoFlex\logs\POSVENDA_RETORNO_"+DtoS(Date())+"_"+StrTran(Time(),":","_")+".log", cLog)
+
+	If oRest:GetHTTPCode() <> "200"
+		cMsg := DecodeUtf8( oJAux:GetJsonText("erros"), "cp1252" )
+		FWAlertError(cMsg, "Promoflex Erro")
+		lRet := .F.
+	EndIf
+return lRet
+
+static function fSendCanc(cPath, cChave)
+	Local aHeader   := {}
+	Local oRest     := Nil
+	Local cRet      := ""
+	Local cJson     := ""
+	Local cUrl      := superGetMv("MV_XURLPRO",.F.,"https://api.promoflex.com.br")  //"https://promoflex-pdv-api.azurewebsites.net" //parametro
+	Local cToken    := superGetMv("MV_XTKNPRO",.F.,"ZGVtbzpkNzliNTE4NjNjM2EyOWEwNGUxZWFkNWI0ZDRlMWI3Ng==") //parametro
+	
+	Local cLog      := ""
+
+	Local lRet		:= .T.
+  
+ 	cJson += '{"chaveAutenticacao": "'+cChave+'"}'
+ 
+	oRest := FwRest():New(cUrl)
+	oRest:SetPath(cPath)
+
+	oRest:SetPostParams(cJson)
+
+	aAdd(aHeader, "Content-Type: application/json")
+	aAdd(aHeader, "Authorization: Basic "+cToken)
+
+	cLog := "URL: "+cUrl+CRLF
+	cLog += "PATH: "+cPath+CRLF
+	cLog += "HEADERS: "+aHeader[1]+CRLF
+	cLog += "HEADERS: "+aHeader[2]+CRLF
+	cLog += "BODY: "+CRLF+cJson+CRLF
+
+	MemoWrite("\PromoFlex\logs\POSVENDA_ENVIO_"+DtoS(Date())+"_"+StrTran(Time(),":","_")+".log", cLog)
+
+	If (oRest:Post(aHeader))
+		cRet := oRest:GetResult()
+	Else
+		cRet := oRest:GetLastError()
+	EndIf
+
+	//cLog := oRest:GetHTTPCode()+CRLF
+	xAux := oRest:GetHTTPCode()
+	cLog := iif(valtype(xAux)=="N",cValToChar(xAux),iif(cValToChar(xAux)=="C",xAux,""))+CRLF
+	cLog += oRest:GetLastError()+CRLF
+	cLog += oRest:GetResult()+CRLF
+
+	MemoWrite("\PromoFlex\logs\POSVENDA_RETORNO_"+DtoS(Date())+"_"+StrTran(Time(),":","_")+".log", cLog)
+
+	If oRest:GetHTTPCode() <> "200"
+		cMsg := DecodeUtf8( oJAux:GetJsonText("erros"), "cp1252" )
+		FWAlertError(cMsg, "Promoflex Erro")
+		lRet := .F.
+	EndIf
+return lRet
