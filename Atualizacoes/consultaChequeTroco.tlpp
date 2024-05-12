@@ -1,0 +1,227 @@
+#INCLUDE 'TOTVS.CH'
+
+/*/{Protheus.doc} User Function consultaChequeTroco
+
+Rotina para consultar cheque troco
+
+Status possíveis:
+- Aberto 
+- Remessa Operador/Caixa
+- Entregue para Cliente
+- Baixado
+- Inutilizado
+
+Status impressao: Sim/Nao
+
+@type  Function
+@author Fabricio Ferreira
+@since 05/09/2023
+@version 1.0
+/*/
+User Function consultaChequeTroco(lAuto, aCheque)
+
+	Private aParamBox := {}
+	Private jDadosCheque as json
+	Private lChTrOp 	:= SuperGetMV("MV_XCHTROP",,.F.) //Controle de Cheque Troco por Operador (default .F.)
+
+	aadd(aParamBox, {1, "Banco"        , Space(TamSX3("UF2_BANCO")[1]) , "", "", "SA6", "", 0, .T.})
+	aadd(aParamBox, {1, "Agencia"      , Space(TamSX3("UF2_AGENCI")[1]), "", "", " "  , "", 0, .T.})
+	aadd(aParamBox, {1, "Conta"        , Space(TamSX3("UF2_CONTA")[1]) , "", "", " "  , "", 0, .T.})
+	aadd(aParamBox, {1, "Numero Cheque", Space(TamSX3("UF2_NUM")[1])   , "", "", " "  , "", 0, .T.})
+
+	While .T.
+		if lAuto
+			MV_PAR01 := aCheque[1]
+			MV_PAR02 := aCheque[2]
+			MV_PAR03 := aCheque[3]
+			MV_PAR04 := aCheque[4]
+		elseIf !ParamBox(aParamBox,"Consulta Cheque Troco",,,,,,,,,.F.,.F.)
+			Return
+		EndIf
+
+		jDadosCheque := buscaDadosCheque()
+		If jDadosCheque["status"] == "NAO_ENCONTRADO"
+			MsgStop("Cheque não encontrado!","Atenção")
+		else
+			DoTela()
+		EndIf
+
+		if lAuto
+			Exit
+		endif
+	Enddo
+
+Return
+
+Static Function DoTela()
+
+	Local oDlg
+
+	DEFINE MSDIALOG oDlg TITLE "Consulta Cheque Troco" FROM 000, 000  TO 360, 475 COLORS 0, 16777215 PIXEL
+
+	@ 009, 010 SAY oSBanco PROMPT "Banco:" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 007, 042 MSGET oGBanco VAR jDadosCheque["banco"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 009, 127 SAY oSAgencia PROMPT "Agencia:" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 007, 171 MSGET oGAgencia VAR jDadosCheque["agencia"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 023, 010 SAY oSConta PROMPT "Conta:" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 021, 042 MSGET oGConta VAR jDadosCheque["conta"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 023, 127 SAY oSNumCheque PROMPT "Num. Cheque:" SIZE 041, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 021, 171 MSGET oGNumChq VAR jDadosCheque["numeroCheque"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 037, 010 SAY oSValor PROMPT "Valor: R$" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 035, 042 MSGET oGValor VAR jDadosCheque["valor"] PICTURE PesqPict("UF2","UF2_VALOR") SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+	
+    @ 037, 127 SAY oSDataInc PROMPT "Data Inclusão:" SIZE 041, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 035, 171 MSGET oGDtInc VAR jDadosCheque["dataInc"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 057, 010 SAY oSStatus PROMPT "Status:" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 052, 042 MSGET oGStatus VAR jDadosCheque["status"] SIZE 190, 015 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+	oGStatus:SetCSS( "TGet{ font:bold 16px; color: #0055FF; background-color: transparent; border: none; margin: 0px; }" )
+
+    @ 077, 010 SAY oSImpresso PROMPT "Impresso?" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 075, 042 MSGET oGImpresso VAR jDadosCheque["impresso"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 077, 127 SAY oSDtImpr PROMPT "Data Impressão:" SIZE 041, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 075, 171 MSGET oGDtImp VAR jDadosCheque["dataImpress"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+	if lChTrOp
+		@ 091, 010 SAY oSOperador PROMPT "Operador:" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+		@ 089, 042 MSGET oGOper VAR jDadosCheque["operador"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+	else
+		@ 091, 010 SAY oSPdv PROMPT "PDV:" SIZE 032, 007 OF oDlg COLORS 0, 16777215 PIXEL
+		@ 089, 042 MSGET oGPdv VAR jDadosCheque["pdv"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+	endif
+
+    @ 091, 127 SAY oSDtRemessa PROMPT "Data Remessa:" SIZE 041, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 089, 171 MSGET oGDtRem VAR jDadosCheque["dataRemessa"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 105, 010 SAY oSCliente PROMPT "Cliente:" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	cGCliente := jDadosCheque["cliente"]+"/"+jDadosCheque["lojaCl"]+" - "+jDadosCheque["nomeCliente"]
+	@ 103, 042 MSGET oGCliente VAR cGCliente SIZE 190, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 119, 010 SAY oSDocumento PROMPT "Documento:" SIZE 032, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 117, 042 MSGET oGDoc VAR jDadosCheque["doc"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+	if UPPER(Alltrim(jDadosCheque["status"]))=="INUTILIZADO"
+		@ 119, 127 SAY oSDtUso PROMPT "Data Inutilização:" SIZE 041, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	else
+    	@ 119, 127 SAY oSDtUso PROMPT "Data Entrega:" SIZE 041, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	endif
+	@ 117, 171 MSGET oGDtEntrega VAR jDadosCheque["dataMov"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+	if lChTrOp
+		@ 133, 010 SAY oSPdv PROMPT "PDV:" SIZE 032, 007 OF oDlg COLORS 0, 16777215 PIXEL
+		@ 131, 042 MSGET oGPdv VAR jDadosCheque["xPdv"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+	else
+		@ 133, 010 SAY oSOperador PROMPT "Operador:" SIZE 025, 007 OF oDlg COLORS 0, 16777215 PIXEL
+		@ 131, 042 MSGET oGOper VAR jDadosCheque["xOperador"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+	endif
+
+    @ 133, 127 SAY oSHora PROMPT "Hora Entrega:" SIZE 041, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 131, 171 MSGET oGHoraEnt VAR jDadosCheque["hora"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 147, 010 SAY oSDtBaixa PROMPT "Data Baixa:" SIZE 032, 007 OF oDlg COLORS 0, 16777215 PIXEL
+	@ 145, 042 MSGET oGDtBaixa VAR jDadosCheque["dataBaixa"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+
+    @ 147, 127 SAY oSConciliado PROMPT "Conciliado?" SIZE 032, 007 OF oDlg COLORS 0, 16777215 PIXEL
+    @ 145, 171 MSGET oGConciliado VAR jDadosCheque["conciliado"] SIZE 060, 010 OF oDlg COLORS 0, 16777215 PIXEL READONLY
+    
+	@ 163, 190 BUTTON oButton1 PROMPT "Fechar" SIZE 040, 012 OF oDlg ACTION oDlg:End() PIXEL
+
+	ACTIVATE MSDIALOG oDlg CENTERED
+
+Return
+
+/*/{Protheus.doc} buscaDadosCheque
+Busca dados do cheque
+@type Function
+@author Fabricio Ferreira
+@since 05/09/2023
+@version 1.0
+/*/
+Static Function buscaDadosCheque() as json
+
+	Local cSGBD	:= AllTrim(Upper(TcGetDb())) // -- Banco de dados atulizado (Para embientes TOP) 			 	
+	Local cQry := ""
+	Local cAliasQry := ""
+	Local jDadosCheque as json
+
+	cQry += " SELECT "
+	cQry += " CASE "
+	cQry += "   WHEN ISNULL(SE5.E5_NUMCHEQ, ' ') = UF2.UF2_NUM THEN 'Baixado (pago)'"
+	cQry += "   WHEN UF2.UF2_XGERAF = 'G' OR UF2.UF2_STATUS = '2' THEN 'Entregue a Cliente'"
+	cQry += "   WHEN UF2.UF2_STATUS = '1' AND UF2.UF2_CODCX = ' ' THEN 'Em Aberto'"
+	if lChTrOp
+		cQry += "   WHEN UF2.UF2_STATUS = '1' AND UF2.UF2_CODCX != ' ' THEN 'Remessa Operador/Caixa'"
+	else
+		cQry += "   WHEN UF2.UF2_STATUS = '1' AND UF2.UF2_PDV != ' ' THEN 'Remessa PDV'"
+	endif
+	cQry += "   WHEN UF2.UF2_STATUS = '3' THEN 'Inutilizado'"
+	cQry += "   ELSE 'Indefinido'"
+	cQry += " END STATUS"
+	cQry += " , UF2_BANCO, UF2_AGENCI, UF2_CONTA, UF2_NUM, UF2_VALOR, UF2_PDV, UF2_CODCX, UF2_XPDV, UF2_XOPERA"
+	cQry += " , UF2_DOC, UF2_SERIE, UF2_CLIENT, UF2_LOJACL, SA1.A1_NOME, UF2_DATAMO, UF2_XHORA, UF2_DTINC"
+	cQry += " , ISNULL(SE5.E5_DATA, ' ') E5_DATA, ISNULL(SE5.E5_RECONC, ' ') E5_RECONC"
+	cQry += " , UF2_IMPRES, UF2_DTIMPR, UF2_DTREM"
+	cQry += " FROM "+RetSQLName("UF2")+" "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" UF2"
+	cQry += " LEFT JOIN ("
+	cQry += " 	SELECT E5_BANCO, E5_AGENCIA, E5_CONTA, E5_NUMCHEQ, E5_DATA, E5_RECONC"
+	cQry += " 	FROM "+RetSQLName("SE5")+" "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" SE5 "
+	cQry += " 	WHERE E5_FILIAL = "+ValToSQL(xFilial("SE5"))
+	cQry += " 	AND E5_TIPODOC IN ('CA','CH') "
+	cQry += " 	AND E5_NUMCHEQ != ' '"
+	cQry += " 	AND E5_RECPAG = 'P' "
+	cQry += " 	AND E5_SITUACA <> 'C'"
+	cQry += " 	and SE5.D_E_L_E_T_ = ' ' "
+	cQry += " 	GROUP BY E5_BANCO, E5_AGENCIA, E5_CONTA, E5_NUMCHEQ, E5_DATA, E5_RECONC	"
+	cQry += " ) SE5 ON SE5.E5_BANCO = UF2.UF2_BANCO AND SE5.E5_AGENCIA = UF2.UF2_AGENCI AND SE5.E5_CONTA = UF2.UF2_CONTA AND SE5.E5_NUMCHEQ = UF2.UF2_NUM"
+	cQry += " LEFT JOIN "+RetSQLName("SA1")+" "+iif("ORACLE"$cSGBD,"","(NOLOCK)")+" SA1"
+	cQry += " ON SA1.A1_FILIAL = '"+xFilial("SA1")+"' AND SA1.A1_COD = UF2_CLIENT AND SA1.A1_LOJA = UF2_LOJACL AND SA1.D_E_L_E_T_ = ' '"
+	cQry += " WHERE UF2.D_E_L_E_T_ = ' '"
+	cQry += " AND UF2.UF2_BANCO = "+ValToSQL(MV_PAR01)
+	cQry += " AND UF2.UF2_AGENCI = "+ValToSQL(MV_PAR02)
+	cQry += " AND UF2.UF2_CONTA = "+ValToSQL(MV_PAR03)
+	cQry += " AND UF2.UF2_NUM = "+ValToSQL(MV_PAR04)
+	cQry := ChangeQuery(cQry)
+
+	cAliasQry := MPSysOpenQuery(cQry)
+
+	If !(cAliasQry)->(EOF())
+
+		jDadosCheque := {;
+			"status"       : (cAliasQry)->STATUS,;
+			"banco"        : (cAliasQry)->UF2_BANCO,;
+			"agencia"      : (cAliasQry)->UF2_AGENCI,;
+			"conta"        : (cAliasQry)->UF2_CONTA,;
+			"numeroCheque" : (cAliasQry)->UF2_NUM,;
+			"valor"        : (cAliasQry)->UF2_VALOR,;
+			"pdv"          : (cAliasQry)->UF2_PDV,;
+			"operador"     : (cAliasQry)->UF2_CODCX + " - " + Posicione("SA6",1,xFilial("SA6")+(cAliasQry)->UF2_CODCX,"A6_NOME"),; 
+			"xPdv"         : (cAliasQry)->UF2_XPDV,;
+			"xOperador"    : (cAliasQry)->UF2_XOPERA + " - " + Posicione("SA6",1,xFilial("SA6")+(cAliasQry)->UF2_XOPERA,"A6_NOME"),;
+			"doc"          : (cAliasQry)->UF2_DOC + "/" + (cAliasQry)->UF2_SERIE,;
+			"cliente"      : (cAliasQry)->UF2_CLIENT,;
+			"lojaCl"       : (cAliasQry)->UF2_LOJACL,;
+			"nomeCliente"  : (cAliasQry)->A1_NOME,;
+			"dataMov"      : STOD((cAliasQry)->UF2_DATAMO),;
+			"hora"         : (cAliasQry)->UF2_XHORA,;
+			"dataInc"      : STOD((cAliasQry)->UF2_DTINC),;
+			"impresso"     : iif((cAliasQry)->UF2_IMPRES=="S","SIM","NÃO"),;
+			"dataImpress"  : STOD((cAliasQry)->UF2_DTIMPR),;
+			"dataRemessa"  : STOD((cAliasQry)->UF2_DTREM),;
+			"dataBaixa"    : STOD((cAliasQry)->E5_DATA),;
+			"conciliado"   : iif(!empty((cAliasQry)->E5_RECONC),"SIM","NÃO");
+			}
+
+	Else
+
+		jDadosCheque := {"status": "NAO_ENCONTRADO"}
+
+	EndIf
+
+	(cAliasQry)->(DbCloseArea())
+
+Return(jDadosCheque)
