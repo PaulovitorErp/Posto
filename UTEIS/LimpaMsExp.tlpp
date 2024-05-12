@@ -1,0 +1,116 @@
+#INCLUDE "PROTHEUS.CH"
+
+/*/{Protheus.doc} User Function LimpaMsExp
+Limpa campos MSEXP e HREXP
+@type  Function
+@author Danilo
+@since 31/10/2023
+@version 1
+/*/
+User Function LimpaMsExp(lExclus) //U_LimpaMsExp()
+    
+    Local nX
+    Local aTables := {}
+    Local cQuery		:= ""
+	Local cTablePrefix	:= ""
+	Local nStatus		:= 0
+	Local lUpdate		:= .T.
+
+    Default lExclus := .T.
+
+    aadd(aTables, "ACY")
+    aadd(aTables, "CLK")
+    aadd(aTables, "DA0")
+    aadd(aTables, "DA1")
+    aadd(aTables, "DA3")
+    aadd(aTables, "DA4")
+    aadd(aTables, "MDE")
+    aadd(aTables, "MDG")
+    aadd(aTables, "MHX")
+    aadd(aTables, "MHY")
+    aadd(aTables, "MHZ")
+    aadd(aTables, "MIC")
+    aadd(aTables, "SA1")
+    aadd(aTables, "SA3")
+    aadd(aTables, "SA6")
+    aadd(aTables, "SAE")
+    aadd(aTables, "SAH")
+    aadd(aTables, "SB1")
+    aadd(aTables, "SB5")
+    aadd(aTables, "SBM")
+    aadd(aTables, "SBZ")
+    aadd(aTables, "SE4")
+    aadd(aTables, "SF4")
+    aadd(aTables, "SF7")
+    aadd(aTables, "SFM")
+    aadd(aTables, "SLF")
+    aadd(aTables, "SLG")
+    aadd(aTables, "SLK")
+    aadd(aTables, "SZO")
+    aadd(aTables, "U00")
+    aadd(aTables, "U04")
+    aadd(aTables, "U0A")
+    aadd(aTables, "U0B")
+    aadd(aTables, "U0C")
+    aadd(aTables, "U0D")
+    aadd(aTables, "U25")
+    aadd(aTables, "U44")
+    aadd(aTables, "U52")
+    aadd(aTables, "U53")
+    aadd(aTables, "U59")
+    aadd(aTables, "U68")
+    aadd(aTables, "U92")
+    aadd(aTables, "UC2")
+    aadd(aTables, "UF2")
+    aadd(aTables, "UF6")
+    aadd(aTables, "UH8")
+    aadd(aTables, "UH9")
+    aadd(aTables, "UIB")
+    aadd(aTables, "ZE0")
+    aadd(aTables, "F2E")
+    aadd(aTables, "CJ0")
+    aadd(aTables, "CJ1")
+    aadd(aTables, "CJ2")
+    aadd(aTables, "F20")
+    aadd(aTables, "F21")
+    aadd(aTables, "F22")
+    aadd(aTables, "F23")
+    aadd(aTables, "F24")
+    aadd(aTables, "F25")
+    aadd(aTables, "F26")
+    aadd(aTables, "F27")
+    aadd(aTables, "F28")
+    aadd(aTables, "CIO")
+    aadd(aTables, "CIN")
+    aadd(aTables, "F2B")
+    aadd(aTables, "F2G")
+    aadd(aTables, "F3K")
+    aadd(aTables, "CDY")
+    aadd(aTables, "CE0")
+
+    For nX := 1 to len(aTables)
+
+        cTablePrefix	 := If(SubStr(aTables[nX],1,1) == "S", SubStr(aTables[nX],2,3), aTables[nX])
+        
+        lUpdate := SubStr(xFilial(aTables[nX]),1,4) == SubStr(cFilAnt,1,4)
+
+        If lUpdate
+            cQuery := "UPDATE " + RetSqlName(aTables[nX])
+            cQuery += " SET " + cTablePrefix + "_MSEXP = '        ' "
+            cQuery += " , " + cTablePrefix + "_HREXP = '        ' "
+            cQuery += "WHERE " + cTablePrefix + "_FILIAL = '" + xFilial(aTables[nX]) + "'
+
+            nStatus := TCSQLEXEC(cQuery)
+
+            If nStatus < 0
+                conout("TABELA: "+aTables[nX]+" Não foi possível atualizar os campos de controle MSEXP e HREXP.")
+            else
+                conout("TABELA: "+aTables[nX]+" Atualizado com sucsso os campos de controle MSEXP e HREXP.")
+            EndIf
+        else
+            conout("TABELA: "+aTables[nX]+" Ignorado atualizar os campos de controle MSEXP e HREXP.")
+        EndIf
+        
+    next nX
+
+Return 

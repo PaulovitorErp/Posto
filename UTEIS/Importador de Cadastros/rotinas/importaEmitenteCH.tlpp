@@ -1,0 +1,114 @@
+/*/{Protheus.doc} User Function importaEmitenteCH
+  Rotina para importacao de Emitente de Cheque
+  @type  Function
+  @author Fabricio Ferreira
+  @since 04/09/2023
+  @version 1.0
+  @param cArquivo, character, Arquivo a ser importado
+  /*/
+namespace Duofy.importadorCadastros
+User Function importaEmitenteCH(cArquivo as character)
+	Local cHeader      as character
+	Local aHeader      as array
+	Local cLinha       as character
+	Local aLinha       as array
+	Local nIndex       as numeric
+	Local nLinha       as numeric
+	Local aCampos      as array
+	Local cCGC         as character
+	Local cCliente     as character
+	Local cLoja        as character
+	Local cEmiten      as character
+	Local lErroLinha   as logical
+	Local oFile    := FWFileReader():New(cArquivo)
+
+	aCampos := {}
+	AAdd(aCampos,"A1_CGC")
+	AAdd(aCampos,"A1_COD")
+	AAdd(aCampos,"A1_LOJA")
+	AAdd(aCampos,"A1_XEMCHQ")
+
+	If !oFile:Open()
+		MsgStop( "Falha ao abrir o arquivo: " + cArquivo, 'Importador Cadastros' )
+		Return
+	Endif
+
+	cHeader := oFile:GetLine()
+	aHeader := StrToKArr2(cHeader, ";",.T.)
+	ProcRegua(0)
+	IncProc("Processando Cabeçalho...")
+
+	cErro := ""
+	For nIndex := 1 to Len(aHeader)
+		If aScan(aCampos, aHeader[nIndex]) <= 0
+			cErro += "Linha 1 - Campo invalido: " + aHeader[nIndex] + Chr(13)+Chr(10)
+		EndIf
+	Next nIndex
+
+	If !Empty(cErro)
+		Aviso( "Importador Cadastros", cErro, { "Fechar" }, 3, 'Erros encontrados no arquivo '+cArquivo,,,.T.)
+		Return
+	EndIf
+
+	nLinha:=0
+	While oFile:hasLine()
+		lErroLinha := .F.
+		nLinha++
+		cLinha := oFile:GetLine()
+		aLinha := StrToKArr2(cLinha, ";",.T.)
+
+		cCGC        := Space(TamSX3("A1_CGC")[1])
+		cCliente    := Space(TamSX3("A1_COD")[1])
+		cLoja       := Space(TamSX3("A1_LOJA")[1])
+		cEmiten		:= "S"
+
+		if aScan(aHeader,"A1_CGC")>0
+			cCGC        := Pad(aLinha[aScan(aHeader,"A1_CGC")], TamSX3("A1_CGC")[1])
+		endif
+		if aScan(aHeader,"A1_COD")>0
+			cCliente        := Pad(aLinha[aScan(aHeader,"A1_COD")], TamSX3("A1_COD")[1])
+		endif
+		if aScan(aHeader,"A1_LOJA")>0
+			cLoja        := Pad(aLinha[aScan(aHeader,"A1_LOJA")], TamSX3("A1_LOJA")[1])
+		endif
+		if aScan(aHeader,"A1_XEMCHQ")>0
+			cEmiten := Pad(aLinha[aScan(aHeader,"A1_XEMCHQ")], TamSX3("A1_XEMCHQ")[1])
+		endif
+		
+		IncProc("Processando Linha "+cValToChar(nLinha)+"...")
+		If !Empty(AllTrim(cCGC)) .AND. empty(cCliente)
+			SA1->(DbSetOrder(3))
+			If !SA1->(DbSeek(xFilial()+cCGC))
+				cErro += "Linha "+cValToChar(nLinha+1)+" - CNPJ/CPF não encontrado: " + cCGC + Chr(13)+Chr(10)
+				lErroLinha := .T.
+			else
+				cCliente := SA1->A1_COD
+				cLoja    := SA1->A1_LOJA
+			EndIf
+		elseIf !Empty(AllTrim(cCliente)) .AND. empty(cCGC)
+			SA1->(DbSetOrder(1))
+			If !SA1->(DbSeek(xFilial()+cCliente+cLoja))
+				cErro += "Linha "+cValToChar(nLinha+1)+" - Cliente não encontrado: " + cCliente+cLoja + Chr(13)+Chr(10)
+				lErroLinha := .T.
+			else
+				cCliente := SA1->A1_COD
+				cLoja    := SA1->A1_LOJA
+			EndIf
+		else
+			lErroLinha := .T.
+		EndIf
+
+		If lErroLinha
+			Loop
+		EndIf
+
+		if RecLock("SA1",.F.)
+			SA1->A1_XEMCHQ := cEmiten
+			U25->(MsUnLock())
+		endif
+	EndDo
+	oFile:Close()
+	If !Empty(cErro)
+		Aviso( "Importador Cadastros", cErro, { "Fechar" }, 3, 'Erros encontrados no arquivo '+cArquivo,,,.T.)
+	EndIf
+Return

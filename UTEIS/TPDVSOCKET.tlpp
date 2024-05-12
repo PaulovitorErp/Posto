@@ -1,0 +1,93 @@
+#INCLUDE 'TBICONN.CH'
+#INCLUDE 'PROTHEUS.CH'
+#INCLUDE 'TOTVS.CH'
+
+User Function TPDVSock()
+Return
+
+CLASS TPDVSock
+
+	PUBLIC data nPort
+	PUBLIC data cIPServer
+	PUBLIC data nTimeOut
+	PUBLIC data nAttempts
+	PUBLIC data oObjSock
+	PUBLIC data xResult
+
+	PUBLIC Method New(nPort,cIPServer,nTimeOut,nAttempts) CONSTRUCTOR
+	PUBLIC Method ConnSock()
+	PUBLIC Method DisConnSock()
+	PUBLIC Method IsConn()
+	PUBLIC Method Send(cString)
+	PUBLIC Method LastReturn()
+
+ENDCLASS
+
+Method New(nPort,cIPServer,nTimeOut,nAttempts) CLASS TPDVSock
+
+	DEFAULT nTimeOut := 1000
+	DEFAULT nAttempts := 3
+
+	::oObjSock := TSocketClient():New()
+	::nPort := nPort
+	::cIPServer := cIPServer
+	::nTimeOut := nTimeOut
+	::nAttempts := nAttempts
+	::xResult := ""
+
+Return
+
+Method ConnSock() CLASS TPDVSock
+
+	Local lRet := .F.
+	Local nX := 0
+	Local nResp := 0
+
+	If ValType(::oObjSock)=="O"
+		If( !Self:IsConn() )
+			For nX := 1 To ::nAttempts
+				If (nX > 1) //a partir da segunda tentativa, aguarda um tempo para tentar conectar novamente
+					Sleep(2000) //Para o processamento por 2 segundo
+				EndIf
+				nResp := ::oObjSock:Connect( ::nPort, ::cIPServer, ::nTimeOut ) // tento conectar no IP e Porta
+				If nResp == 0 // se conectou sai do loop
+					lRet := .T.
+					Exit
+				EndIf
+			Next nX
+		Else
+			lRet := .T.
+		EndIf
+	EndIf
+
+Return lRet
+
+Method DisConnSock() CLASS TPDVSock
+	::oObjSock:CloseConnection()
+	FreeObj(::oObjSock)
+	::oObjSock := Nil
+	//FreeObj(Self)
+Return
+
+Method IsConn() CLASS TPDVSock
+Return ::oObjSock:IsConnected()
+
+Method Send(cString) CLASS TPDVSock
+
+	::xResult := ""
+	If( ::oObjSock:Send(cString) != Len(cString) )
+		//conout( " >> ERRO: DADO NAO TRANSMITIDO" )
+	Else
+		//conout( " >> DADO ENVIADO COM SUCESSO" )
+		If( ::oObjSock:Receive( @::xResult, ::nTimeOut ) > 0 )
+			//conout(" >> DADO RECEBIDO COM SUCESSO" )
+		Else
+			//conout(" >> NAO EXISTE RETORNO")
+			::xResult := ""
+		EndIf
+	EndIf
+
+Return ::xResult
+
+Method LastReturn() CLASS TPDVSock
+Return ::xResult

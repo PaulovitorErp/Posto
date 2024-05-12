@@ -1,0 +1,106 @@
+#INCLUDE "PROTHEUS.CH"
+/*/{Protheus.doc} User Function importaGenerico
+  Rotina para importacao generica de tabelas 
+  @type  Function
+  @author Fabricio Ferreira
+  @since 01/09/2023
+  @version 1.0
+  @param cArquivo, character, Arquivo a ser importado
+  @param cAliasTabela, character, Arquivo a ser importado
+  @param nOrderKey, numeric, (OPCIONAL) Chave de ordenacao da tabela para busca
+  @param cFieldKey, character, (OPCIONAL) Campo para gerar sequencial GetSXENum
+  @param aFieldsEsp, array, (OPCIONAL) Arrays de campos especiais que nao pertecem ao alias da tabela
+  @param bRotEsp, codeblock, (OPCIONAL) Codeblock para processamento de campos especiais
+  /*/
+namespace Duofy.importadorCadastros
+User Function importaGenerico(;
+		cArquivo     as character,;
+		cAliasTabela as character,;
+		nOrderKey    as numeric,;
+		cFieldKey    as character,;
+		aFieldsEsp   as array,;
+		bRotEsp      as codeblock;
+		)
+	Local cHeader  as character
+	Local aHeader  as array
+	Local cLinha   as character
+	Local aLinha   as array
+	Local nIndex   as numeric
+	Local nLinha   as numeric
+	Local cErro    as character
+	Local cErroExp as character
+	Local cPrefixoTabela       := IIf(SubStr(cAliasTabela,1,1) != "S", cAliasTabela, SubStr(cAliasTabela,2,2))
+	Local aCampos              := FWSX3Util():GetAllFields( cAliasTabela , .T. )
+	Local oFile                := FWFileReader():New(cArquivo)
+	Local lRecLock             := .T.
+	Default ValType(nOrderKey) := 0
+	Default ValType(cFieldKey) := ""
+	Default aFieldsEsp         := {}
+	If !oFile:Open()
+		MsgStop( "Falha ao abrir o arquivo: " + cArquivo, 'Importador Cadastros' )
+		Return
+	Endif
+	cHeader := oFile:GetLine()
+	aHeader := StrToKArr2(cHeader, ";",.T.)
+	ProcRegua(0)
+	IncProc("Processando Cabeçalho...")
+	For nIndex := 1 to Len(aHeader)
+		If (SubStr(aHeader[nIndex],1,Len(cPrefixoTabela)) != cPrefixoTabela ;
+				.OR. aScan(aCampos, aHeader[nIndex]) <= 0);
+				.AND. aScan(aFieldsEsp, aHeader[nIndex]) <= 0
+			cErro += "Linha 1 - Campo invalido: " + aHeader[nIndex] + Chr(13)+Chr(10)
+			Return
+		EndIf
+	Next nIndex
+	If !Empty(cErro)
+		Aviso( "Importador Cadastros", cErro, { "Fechar" }, 3, 'Erros encontrados no arquivo '+cArquivo,,,.T.)
+		Return
+	EndIf
+	nLinha:=0
+	While oFile:hasLine()
+		nLinha++
+		IncProc("Processando Linha "+cValToChar(nLinha)+"...")
+		DbSelectArea(cAliasTabela)
+		cLinha := oFile:GetLine()
+		aLinha := StrToKArr2(cLinha, ";",.T.)
+		If nOrderKey > 0
+			DbSetOrder(nOrderKey)
+			lRecLock := !DbSeek(xFilial(cAliasTabela)+aLinha[1])
+		EndIf
+		If Len(aLinha) != Len(aHeader)
+			cErro += "Linha "+cValToChar(nLinha+1)+" - Quantidade de colunas diferente do cabeçalho." + Chr(13)+Chr(10)
+			Loop
+		EndIf
+		Begin Transaction
+			RecLock(cAliasTabela, lRecLock)
+			If ValType(bRotEsp) == "B"
+				cErroExp := Eval(bRotEsp, aLinha, aHeader, nLinha)
+				If !Empty(AllTrim(cErroExp))
+					cErro += cErroExp
+					DisarmTransaction()
+				EndIf
+			EndIf
+			If Empty(AllTrim(cErroExp))
+				For nIndex := 1 to Len(aHeader)
+					If aScan(aFieldsEsp, aHeader[nIndex]) <= 0
+						FieldPut(FieldPos(aHeader[nIndex]), U_converteCampo(aHeader[nIndex], aLinha[nIndex]))
+					EndIf
+				Next nIndex
+				If !Empty(cFieldKey) .AND. lRecLock
+					cValue := GetSxeNum(cAliasTabela, cFieldKey)
+					DbSelectArea(cAliasTabela)
+					FieldPut(FieldPos(cFieldKey), cValue)
+					ConfirmSx8()
+				EndIf
+				DbSelectArea(cAliasTabela)
+			Else
+				DisarmTransaction()
+			EndIf
+			MsUnLock()
+		End Transaction
+	EndDo
+	oFile:Close()
+	If !Empty(cErro)
+		Aviso( "Importador Cadastros", cErro, { "Fechar" }, 3, 'Erros encontrados no arquivo '+cArquivo,,,.T.)
+	EndIf
+Return

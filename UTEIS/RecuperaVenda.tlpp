@@ -1,0 +1,1299 @@
+#INCLUDE "TOTVS.CH"
+#INCLUDE "TBICONN.CH"
+#INCLUDE "XMLXFUN.CH"
+#INCLUDE "TOPCONN.CH"
+
+Static cOrigemNF := "1"
+Static cAmbiente := "1"
+Static cSerieNF := space(TamSX3("L1_SERIE")[1])
+Static cNumeroNF := ""
+Static cArquivoXML := ""
+Static cXmlSig := ""
+
+/*/{Protheus.doc} User Function RecuperaVenda
+
+Rotina que recupera uma venda a partir do XML da nota fiscal eletrônica
+
+@type  Function
+@author danilo
+@since 05/03/2024
+@version 1
+/*/
+User Function RecuperaVenda()
+    
+    While DoPerguntas()
+        if cOrigemNF == "1"
+            RecuperaVendaTSS()
+        else
+            RecuperaVendaXML()
+        endif
+    enddo
+
+Return 
+
+Static Function DoPerguntas()
+    
+    Local aPergs := {}
+    Local aParamEnc := {}
+    Local lRet := .F.
+    Local bValid := {|| iif(MV_PAR01=="1" .AND. (empty(MV_PAR02) .OR. empty(MV_PAR03)),(MsgInfo("Informe os dados da nota fiscal (Serie e Numero)!","Atencao"),.F.), iif(MV_PAR01=="2" .AND. empty(MV_PAR04),(MsgInfo("Selecione um arquivo XML!","Atencao"),.F.),.T.) ) }
+
+    aAdd(aPergs,{2,"Origem NF",cOrigemNF,{"1=TSS","2=Arquivo XML"},60,"",.F.})
+    aAdd(aPergs,{1,"Série NF",cSerieNF,"","","","MV_PAR01=='1'",30,.F.}) 
+	aAdd(aPergs,{1,"Numero NF de",space(TamSX3("L1_DOC")[1]),"","","","MV_PAR01=='1'",60,.F.})
+	aAdd(aPergs,{2,"Ambiente",cAmbiente,{"1=Produção","2=Homologação"},60,"",.F.})
+    aAdd(aPergs,{6,"Arquivo XML",space(200),"","","MV_PAR01=='2'",80,.F.,"Arquivos XML |*.XML","",GETF_LOCALHARD })
+    
+    if ParamBox(aPergs ,"Recupera Venda",@aParamEnc,bValid,,,,,,.F.,.F.)
+        cOrigemNF := aParamEnc[1]
+        cSerieNF := aParamEnc[2]
+        cNumeroNF := aParamEnc[3]
+        cAmbiente := aParamEnc[4]
+        cArquivoXML := aParamEnc[5]
+        lRet := .T.
+    endif
+
+Return lRet
+
+
+Static Function RecuperaVendaTSS()
+
+    Local lRet := .T.
+    Local cSQL := ""
+    Local lNFe
+    Local aDados := {}, aAutoriz := {}
+    Local cYesNo := ""
+
+    if (lRet := ValidaDocSerie())
+
+        U_PROtcSetConn() //seta conexão para banco Protheus
+        If !U_TSStcSetConn() //abre ou seta conexão para banco TSS
+
+            U_PROtcSetConn() //volto conexão para banco Protheus
+            MsgAlert("Não foi possível conectar no banco de dados TSS!","Atencao")
+            lRet := .F.
+
+        else
+
+            //-- Select para buscar o XML da nota fiscal
+            //-- Status NFe
+            //--  [1] NFe Recebida
+            //--  [2] NFe Assinada
+            //--  [3] NFe com falha no schema XML
+            //--  [4] NFe transmitida
+            //--  [5] NFe com problemas
+            //--  [6] NFe autorizada
+            //--  [7] Cancelamento
+            cSQL := "SELECT S050.D_E_L_E_T_ as DELET, " + CRLF
+            cSQL += "S050.R_E_C_N_O_ as RECNO, " + CRLF
+            cSQL += "ISNULL(CAST(CAST(S050.XML_SIG AS VARBINARY(8000)) AS VARCHAR(8000)),'') as XMLSIG, " + CRLF
+            cSQL += "S050.* " + CRLF
+            cSQL += "FROM SPED050 S050 " + CRLF
+            cSQL += " WHERE S050.AMBIENTE = "+cAmbiente+" " + CRLF //-- 1-Produção / 2-Homologação
+            //cSQL += " AND (S050.STATUS <> 6 " //-- ou avalia somente notas não autorizadas (STATUS <> 6)
+            //cSQL += " OR S050.MODALIDADE = 2) " + CRLF //-- ou avalia todas a notas em contigência, independente do STATUS
+            cSQL += " AND NFE_ID = '"+cSerieNF+cNumeroNF+"'" //-- identifica a nota fiscal
+            cSQL += " AND RIGHT(S050.DOC_CHV,3) <> 'Id=' " + CRLF
+            cSQL += " AND S050.DOC_CHV <> '' " + CRLF
+            cSQL += " AND S050.D_E_L_E_T_ = ' ' " + CRLF //somente ativos
+
+            If Select("SPDX") > 0
+                SPDX->( DbCloseArea() )
+            EndIf
+
+            //cSQL := ChangeQuery(cSQL)
+            TcQuery cSQL New ALIAS "SPDX"
+
+            SPDX->( DbGoTop() )
+
+            U_PROtcSetConn() //volto conexão para banco Protheus
+
+            if SPDX->(!Eof()) 
+
+                lNFe := (Substr(SPDX->DOC_CHV,21,2) == "55")
+
+                //-- Vamos Verificar se foi autorizado na SEFAZ
+                //-- [01] = Versao
+                //-- [02] = Ambiente
+                //-- [03] = Cod Retorno Sefaz
+                //-- [04] = Descricao Retorno Sefaz
+                //-- [05] = Protocolo
+                //-- [06] = Hash
+                if SPDX->STATUS <> 6
+                    aAutoriz := VldNFSefaz( .F./*não consulta no TSS Local*/, {{SPDX->DOC_CHV,"",lNFe}} )
+                else
+                    aAutoriz := {"4.00", Iif(SPDX->AMBIENTE==1,"1-Produção","2-Homologação"), "100", "Autorizado o uso da NF-e", SPDX->NFE_PROT, ""} //["3.10", "1-Produção", "100", "Autorizado o uso da NF-e", "321180129565401", "f31wP4irnZ2OblFZMzhJLG1EEG8="]
+                endif
+
+                cYesNo := "Nota não autorizada. "+CRLF +"Retorno Sefaz: "+aAutoriz[3]+ " - " + aAutoriz[4] +CRLF+CRLF+"Deseja utilizar o XML assinado e importar mesmo assim?"
+
+                //se está autorizada
+                if (Len(aAutoriz)>0 .AND. aAutoriz[03] == "100") .OR. (!empty(SPDX->XMLSIG) .AND. MsgYesNo(cYesNo,"Atencao"))
+                
+                    //-- Vamos buscar o XML pelo TSS Local
+                    //-- [17][02] = XML Assinado
+                    aDados := VldNFSefaz( .T./*consulta no TSS Local*/, {{Left(SPDX->NFE_ID,3),Right(AllTrim(SPDX->NFE_ID),9),lNFe}} )
+
+                    If (ValType("aDados") <> "A" .or. len(aDados) < 1 .or. len(aDados[01]) < 17 .or. len(aDados[01][17]) < 2 .or. Empty(aDados[01][17][02]))
+                        cXmlSig := SPDX->XMLSIG
+                    Else
+                        cXmlSig := AllTrim(aDados[01][15][02])
+                    EndIf
+
+                    if empty(cXmlSig)
+                        MsgInfo("Não foi possível encontrar o XML da nota fiscal no TSS!","Atencao")
+                        lRet := .F.
+                    else
+
+                        //-- Se chegou aqui vamos gerar L1 L2 L4
+                        lRet := IncluiNotaXML()
+
+                    endif
+
+                else
+                    MsgInfo("Nota Fiscal não está autorizada! Retorno: " + U_XtoStrin(aAutoriz),"Atencao")
+                    lRet := .F.
+                endif
+
+            else
+                MsgInfo("Nota Fiscal não encontrada no TSS!","Atencao")
+                lRet := .F.
+            endif
+        
+        endif
+
+        U_TSSCloseDB()
+    endif
+
+Return lRet
+
+/*/{Protheus.doc} VldNFSefaz
+Retorna o status das notas, conforme vetor encaminhado
+@author  author
+@since   date
+@version version
+/*/
+Static Function VldNFSefaz(lConsTSS, aNotas)
+
+	Local cRetSFZ  := ""
+	Local aRet := {}, aInfMonNFe := {}
+	Local ix := 0
+    Local cURLNFe, cIdEntNFe, cIdEntNFCe, cURLNFCe, cModelo, lNFe
+
+    cIdEntNFe	:= URetEntTss("55",.F.) //RetIdEnti()
+    cURLNFe		:= AllTrim( GetMV("MV_SPEDURL") )
+    cIdEntNFCe	:= URetEntTss("65",.F.) //StaticCall(LOJNFCE,LjNFCeIDEnt)
+    cURLNFCe	:= AllTrim( GetMV("MV_NFCEURL") )
+
+	for ix:=1 to len(aNotas)
+
+		//-- Consulta no TSS
+		lNFe := aNotas[ix][03]
+        cModelo := iif(lNFe,"55","65")
+
+		if lConsTSS
+
+			//-- aNotas[01] Serie
+			//-- aNotas[02] Nr da NF a Consultar
+			aInfMonNFe := ProcMonitorDoc(   iif(lNFe,cIdEntNFe,cIdEntNFCe),;
+                                            iif(lNFe,cURLNFe,cURLNFCe),;
+                                            {aNotas[ix][01],aNotas[ix][02],aNotas[ix][02]},;
+                                            1 /*nTpMonitor*/,;
+                                            cModelo,;
+                                            .F. /*lCte*/,;
+                                            @cRetSFZ)
+
+			if len(aInfMonNFe)>0
+                aRet := aClone(aInfMonNFe)
+			endif
+
+        //-- Consulta na SEFAZ
+		else
+			//-- aNotas[01] = Chave NFe/NFCe
+			aInfMonNFe := ConsNFeSEFAZ(iif(lNFe,cIdEntNFe,cIdEntNFCe), iif(lNFe,cURLNFe,cURLNFCe), aNotas[ix][01] )
+
+			if len(aInfMonNFe)>0
+				aRet := aClone(aInfMonNFe)
+			endif
+
+		endif
+
+	next ix
+
+Return aClone(aRet)
+
+
+/*/{Protheus.doc} ConsNFeSEFAZ
+Consulta na SEFAZ
+@author  author
+@since   date
+@version version
+/*/
+Static Function ConsNFeSEFAZ(cIdEnt, cUrl, cChave)
+
+	Local oWS := {}, aDados := {"","","","","",""}
+
+	oWs:= WsNFeSBra():New()
+	oWs:cUserToken	:= "TOTVS"
+	oWs:cID_ENT		:= cIdEnt
+	oWs:cCHVNFE		:= cChave
+	oWs:_URL        := AllTrim(cURL)+"/NFeSBRA.apw"
+
+	if !oWs:ConsultaChaveNFE()
+		Return aDados
+	endif
+
+	if !Empty(oWs:oWSCONSULTACHAVENFERESULT:cVERSAO)
+		aDados[01] := oWs:oWSCONSULTACHAVENFERESULT:cVERSAO
+	endif
+
+	aDados[02] := IIf(oWs:oWSCONSULTACHAVENFERESULT:nAMBIENTE==1,"1-Produção","2-Homologação")
+	aDados[03] := oWs:oWSCONSULTACHAVENFERESULT:cCODRETNFE
+	aDados[04] := oWs:oWSCONSULTACHAVENFERESULT:cMSGRETNFE
+
+	if !Empty(oWs:oWSCONSULTACHAVENFERESULT:cPROTOCOLO)
+		aDados[05] := oWs:oWSCONSULTACHAVENFERESULT:cPROTOCOLO
+	endif
+
+	if !Empty(oWs:oWSCONSULTACHAVENFERESULT:cDIGVAL)
+		aDados[06] := oWs:oWSCONSULTACHAVENFERESULT:cDIGVAL
+	endif
+
+Return aDados
+
+/*/{Protheus.doc} URetEntTss
+Retorna o Codigo da Entidade.
+@param	 cModelo 	Modelo do Documento Fiscal
+@return	 cIDENT		Codigo da Entidade que sera retornado
+@author  Varejo
+@version P11.8
+@since   19/04/2016
+/*/
+Static aIDEnt := {}	//IDENT da tabela SPED000 para NFC-e e NF-e
+Static Function URetEntTss(cModelo, lAviso)
+
+	Local cIDENT	:= ""							// Codigo da Entidade que sera retornado
+	Local cURL   	:= ""							// URL de conexão com o TSS
+	Local cErro		:= ""							// mensagem de erro do WS
+	Local nPos		:= 0
+	Local lRetWS	:= .T.							// verifica se o metodo do WS foi executado com sucesso
+	Local lTentar	:= .T.
+	Local lUsaGesEmp:= IIF( FindFunction("FWFilialName") .AND. FindFunction("FWSizeFilial") .AND. FWSizeFilial() > 2, .T., .F. )
+	Local lEnvCodEmp:= GetNewPar("MV_ENVCDGE",.F.)
+	Local aEndereco	:= {}							// array com Logradouro[C], Numero[N], Numero[C] e Complemento[C]
+	Local aTelefone := {}							// array com DDI[N], DDD[N] e Telefone[N]
+	Local cFax		:= ""
+	Local cNomeFant	:= ""
+	Local oWS										// Objeto WS
+
+	Default cModelo	:= "65"	//NFC-e
+	Default lAviso	:= .T.
+
+	If SM0->M0_CODFIL <> CFILANT
+		LjGrvLog( "LOJNFCE", "SM0 NÃO posicionada conforme CFILANT", SM0->M0_CODFIL )
+		If !SM0->( DbSeek(CEMPANT + CFILANT) )
+			LjGrvLog( "LOJNFCE", "NÃO foi possível posicionar SM0 conforme CFILANT", CFILANT)
+		EndIf
+	EndIf
+
+    //
+    // verificamos se o IDENT já foi obtido
+    //
+	nPos := Ascan( aIDEnt, {|x| x[1] == cModelo} )
+
+    // Se não achou o modelo de documento no array, precisamos obter sua entidade no TSS
+	If nPos == 0
+
+		// tratamento dos parametros do metodo do WS
+		If FindFunction("LjFiGetEnd")
+			aEndereco := LjFiGetEnd(SM0->M0_ENDENT, Nil, .T.)	//LOJXFUNB.PRW
+			aTelefone := LjFiGetTel(SM0->M0_TEL)
+			cFax	  := LjFiGetTel(SM0->M0_FAX)[3]
+		Else
+			aEndereco := FisGetEnd(SM0->M0_ENDENT) 				//MATA950.PRW
+			aTelefone := FisGetTel(SM0->M0_TEL)
+			cFax	  := FisGetTel(SM0->M0_FAX)[3]
+		EndIf
+
+		If cModelo == "65"
+			cURL := SuperGetMV("MV_NFCEURL",,"")
+			cNomeFant := Alltrim(SM0->M0_NOME)
+		Else
+			cURL := SuperGetMV("MV_SPEDURL",,"")
+			//futuramente, verificar o impacto de passar essa mesma validação para NFC-e
+			If lUsaGesEmp
+				cNomeFant := FWFilialName()
+			Else
+				cNomeFant := Alltrim(SM0->M0_NOME)
+			EndIf
+		EndIf
+
+		//
+		//instancia o Web Services
+		//
+		oWS := WsSPEDAdm():New()
+
+		oWS:_URL 					:= AllTrim(cURL)+"/SPEDADM.apw"
+		oWS:cUSERTOKEN				:= "TOTVS"
+
+		oWS:oWSEMPRESA:cCNPJ        := IIF(SM0->M0_TPINSC==2 .Or. Empty(SM0->M0_TPINSC),SM0->M0_CGC,"")
+		oWS:oWSEMPRESA:cCPF         := IIF(SM0->M0_TPINSC==3,SM0->M0_CGC,"")
+		oWS:oWSEMPRESA:cIE          := SM0->M0_INSC
+		oWS:oWSEMPRESA:cIM          := SM0->M0_INSCM
+		oWS:oWSEMPRESA:cNOME        := SM0->M0_NOMECOM
+		oWS:oWSEMPRESA:cFANTASIA    := cNomeFant
+		oWS:oWSEMPRESA:cENDERECO    := aEndereco[1]
+		oWS:oWSEMPRESA:cNUM         := aEndereco[3]
+		oWS:oWSEMPRESA:cCOMPL       := aEndereco[4]
+		oWS:oWSEMPRESA:cUF          := SM0->M0_ESTENT
+		oWS:oWSEMPRESA:cCEP         := SM0->M0_CEPENT
+		oWS:oWSEMPRESA:cCOD_MUN     := SM0->M0_CODMUN
+		oWS:oWSEMPRESA:cCOD_PAIS    := "1058"
+		oWS:oWSEMPRESA:cBAIRRO      := SM0->M0_BAIRENT
+		oWS:oWSEMPRESA:cMUN         := SM0->M0_CIDENT
+		oWS:oWSEMPRESA:cCEP_CP      := Nil
+		oWS:oWSEMPRESA:cCP          := Nil
+		oWS:oWSEMPRESA:cDDD         := Str(aTelefone[2],3)
+		oWS:oWSEMPRESA:cFONE        := AllTrim( Str(aTelefone[3],15) )
+		oWS:oWSEMPRESA:cFAX         := AllTrim( Str(cFax,15) )
+		oWS:oWSEMPRESA:cEMAIL       := UsrRetMail(RetCodUsr())
+		oWS:oWSEMPRESA:cNIRE        := SM0->M0_NIRE
+		oWS:oWSEMPRESA:dDTRE        := SM0->M0_DTRE
+		oWS:oWSEMPRESA:cNIT         := IIF(SM0->M0_TPINSC==1,SM0->M0_CGC,"")
+		oWS:oWSEMPRESA:cINDSITESP   := ""
+		oWS:oWSEMPRESA:cID_MATRIZ   := ""
+		//exclusivo para NF-e
+		If cModelo == "55" .AND. lUsaGesEmp .AND. lEnvCodEmp
+			oWS:oWSEMPRESA:CIDEMPRESA:= FwGrpCompany()+FwCodFil()
+		EndIf
+		oWS:oWSOUTRASINSCRICOES:oWSInscricao := SPEDADM_ARRAYOFSPED_GENERICSTRUCT():New()
+
+		//
+		//tratamento do retorno do Web Services
+		//
+		While lTentar
+
+			lRetWS := oWs:ADMEMPRESAS()
+
+			//tratamento do retorno do WS
+			If ValType(lRetWS) == "U"
+				lRetWS := .F.
+			EndIf
+
+			If lRetWS
+				Aadd( aIDEnt, {cModelo, oWS:cADMEMPRESASRESULT} )
+				lTentar := .F.	//para sair do While
+			Else
+				//tratamento para obter o SOAP Fault do Web Services
+				If Empty( GetWscError(3) )
+					cErro := GetWscError(1)
+				Else
+					cErro := GetWscError(3)
+				EndIf
+
+				//se houver interface de usuario, pergunta ao usuario se ele quer tentar novamente
+				If !IsBlind()
+					If lAviso
+						//"NFC-e: Não foi possível transmitir NFC-e (Capturar Código Entidade)" ## //"SIM" ## //NÃO ## //"Deseja tentar novamente?"
+						If Aviso("Nao foi possível obter o código da Entidade", cErro, {"SIM","NÃO"}, 3, "Deseja tentar novamente?") == 2
+							lTentar := .F.	//usuário escolheu não tentar novamente
+						EndIf
+					EndIf
+				Else
+					lTentar := .F.
+					//conout( "Nao foi possivel obter o código da Entidade", cErro)	//"NFC-e: Não foi possível transmitir NFC-e (Capturar Código Entidade)"
+					Help( ,, "NFCETSS",, "Nao foi possivel obter o código da Entidade" + cErro, 1, 0 )
+				EndIf
+			EndIf
+		EndDo
+
+	EndIf
+
+    //
+    // Obtemos o codigo da entidade (SPED001.IDENT) de acordo com o modelo de documento (55 NF-e ou 65 NFC-e)
+    //
+	If lRetWS
+		// se acabou de obter o IDENT, procuramos sua posição no array estatico
+		If nPos == 0
+			nPos := Ascan( aIDEnt, {|x| x[1] == cModelo} )
+			LjGrvLog("","aIDEnt (Entidades Carregadas)", aIDEnt)
+		EndIf
+
+		If nPos > 0
+			cIDENT := aIDEnt[nPos][2]
+		EndIf
+	EndIf
+
+Return cIDENT
+
+
+Static Function RecuperaVendaXML()
+    
+    Local lRet := .T.
+
+    if File(cArquivoXML)
+        
+        cXmlSig := MemoRead(cArquivoXML)
+
+        if !empty(cXmlSig)
+
+            cSerieNF := SubStr(cXmlSig, At("<serie>",cXmlSig)+7,At("</serie>",cXmlSig) - At("<serie>",cXmlSig)-7)
+            cNumeroNF := SubStr(cXmlSig, At("<nNF>",cXmlSig)+5,At("</nNF>",cXmlSig) - At("<nNF>",cXmlSig)-5)
+
+            if Val(cSerieNF) > 0 .AND. Val(cNumeroNF) > 0
+
+                cSerieNF := StrZero(Val(cSerieNF), 3)
+                cNumeroNF := StrZero(Val(cNumeroNF), 9)
+
+                if (lRet := ValidaDocSerie())
+                    
+                    //-- Se chegou aqui vamos gerar L1 L2 L4
+                    lRet := IncluiNotaXML()
+
+                endif
+                
+            else
+                MsgInfo("Série e/ou Número da Nota Fiscal não encontrados no XML!","Atencao")
+                lRet := .F.
+            endif
+        else
+            MsgInfo("Arquivo XML está vazio ou houve alguma falha na leitura do arquivo!","Atencao")
+            lRet := .F.
+        endif
+    else
+        MsgInfo("Arquivo XML não encontrado!","Atencao")
+        lRet := .F.
+    endif
+
+Return lRet
+
+Static Function ValidaDocSerie()
+
+    //verifico primeiro se a venda já existe na SL1, SF2 e SF3
+    SL1->(DbSetOrder(2))//L1_FILIAL+L1_SERIE+L1_DOC+L1_PDV
+    if SL1->(Dbseek(xFilial("SL1")+cSerieNF+cNumeroNF))
+        MsgInfo("Venda já existe na base de dados! Tabela SL1","Atencao")
+        Return .F.
+    endif
+
+    SF2->(DbSetOrder(1))//F2_FILIAL+F2_DOC+F2_SERIE+F2_CLIENTE+F2_LOJA+F2_FORMUL+F2_TIPO
+    if SF2->(Dbseek(xFilial("SF2")+cNumeroNF+cSerieNF))
+        MsgInfo("Venda já existe na base de dados! Tabela SF2","Atencao")
+        Return .F.
+    endif
+
+    SF3->(DbSetOrder(6))//F3_FILIAL+F3_NFISCAL+F3_SERIE
+    if SF3->(Dbseek(xFilial("SF3")+cNumeroNF+cSerieNF))
+        MsgInfo("Venda já existe na base de dados! Tabela SF3","Atencao")
+        Return .F.
+    endif
+
+Return .T.
+
+Static Function IncluiNotaXML()
+
+    Local lRet := .T.
+    Local nX := 0
+    Local oXml, oAux, oItemTemp
+    Local oIdeNfce, oEmitNfce, oDestNfce, oPagNfce, oItemNfce, oTotal
+    Local aPagNfce := {}, aItemNfce := {}
+    Local cInfCpl := ""
+    Local cError := "", cWarning := ""
+    Local nPosAux := 0
+    Local cNumPDV := "", cNumOpe := "", cNumMov := "", cNumEst := "", cVendedor := ""
+    Local cKeyNfce := "", lNFe := .F.
+    Local cDocumento := "", cSerie := "", dEmisNf := CtoD(""), cHora := ""
+    Local cCodCli := "", cLojCli := ""
+    Local cZerEsq := SuperGetMV("MV_XSZERES",,"0") //Serie da nota recuperada: define o caracter que será preeenchido a esquerda do número da série (default "0")
+    Local aItensXML := {}
+    Local cBico := "", cBomba := "", cTanque := "", cCodAbast := "", cLocAbast := ""
+    Local nEncIni := 0; nEncFin := 0; nDesconto := 0;  nAcrescim := 0
+    Local cNumImp		:= ""
+
+    cXmlSig := AllTrim(cXmlSig)
+    oXml := XmlParser( cXmlSig, '_', @cError, @cWarning )
+
+    If oXML == NIL .OR. !empty(cError)
+
+        MsgInfo("Erro ao tentar importar o XML da Nota Fiscal!" + CRLF ;
+            + "XmlParser: Retornou XML invalido para recuperacao da venda. " + CRLF ;
+            + " cError: "+cError + CRLF ;
+            + " cWarning: "+cWarning ;
+        ,"Atencao")
+
+        lRet := .F.
+
+    Else
+        
+        //validando objetos de cada trecho do XML
+        if (oAux := XmlChildEx(oXml,"_NFEPROC"))==Nil
+            oAux := oXml
+        endif
+        if (oAux := XmlChildEx(oAux,"_NFE"))==Nil
+            cError += "Não foi encontrada a tag <nfe> no XML! "
+        endif
+        if (oAux := XmlChildEx(oAux,"_INFNFE"))==Nil
+            cError += "Não foi encontrada a tag <infNFe> no XML! "
+        endif
+        if XmlChildEx(oAux,"_ID")==Nil
+            cError += "Não foi encontrada a tag <infNFe Id=...> no XML! "
+        else
+            cKeyNfce :=	SubStr(oAux:_ID:TEXT,4,44)
+            lNFe := (Substr(cKeyNfce,21,2) == "55")
+        endif
+        if (oIdeNfce := XmlChildEx(oAux,"_IDE"))==Nil
+            cError += "Não foi encontrada a tag <ide> no XML! "
+        endif
+        if (oEmitNfce := XmlChildEx(oAux,"_EMIT"))==Nil
+            cError += "Não foi encontrada a tag <emit> no XML! "
+        endif
+        if (oDestNfce := XmlChildEx(oAux,"_DEST"))==Nil
+            //comentei pois pode ser que o XML não tenha a tag <dest>, ai vai como cliente padrao
+            //cError += "Não foi encontrada a tag <dest> no XML! "
+        endif
+        if (oTotal := XmlChildEx(oAux,"_TOTAL"))==Nil
+            cError += "Não foi encontrada a tag <total> no XML! "
+        endif
+        if (oPagNfce := XmlChildEx(oAux,"_PAG"))==Nil
+            cError += "Não foi encontrada a tag <pag> no XML! "
+        else
+            if ValType(oPagNfce) == "A"
+                aPagNfce := oPagNfce
+            else
+                aadd(aPagNfce, oPagNfce)
+            endif
+        endif
+        if (oItemNfce := XmlChildEx(oAux,"_DET"))==Nil
+            cError += "Não foi encontrada a tag <det> no XML! "
+        else
+            if ValType(oItemNfce) == "A"
+                aItemNfce := oItemNfce
+            else
+                aadd(aItemNfce, oItemNfce)
+            endif
+        endif
+        if (oAux := XmlChildEx(oAux,"_INFADIC"))==Nil .OR. XmlChildEx(oAux,"_INFCPL")==Nil
+            cError += "Não foi encontrada a tag <infAdic> ou <infCpl> no XML! "
+        else
+            cInfCpl := oAux:_INFCPL:TEXT
+        endif
+
+        if empty(cError)
+            //-- numero do PDV das informações complementares
+            nPosAux := At("PDV: ",cInfCpl)
+            if nPosAux > 0
+                nPosAux += 5
+                cNumPDV := SubStr(cInfCpl, nPosAux, At("/",cInfCpl,nPosAux)-nPosAux)
+                cNumPDV := PadR(cNumPDV,TamSX3("L1_PDV")[1])
+            else
+                cError += "Não foi encontrada a informação PDV nas informações complementares do XML! "
+            endif
+
+            //-- numero do operador das informações complementares
+            nPosAux := At("OPERADOR: ",cInfCpl)
+            if nPosAux > 0
+                nPosAux += 10
+                cNumOpe := SubStr(cInfCpl,nPosAux,TamSX3("L1_OPERADO")[1])
+            else
+                cError += "Não foi encontrada a informação OPERADOR nas informações complementares do XML! "
+            endif
+
+            //-- numero do movimento das informações complementares
+            nPosAux := At("N.MOV: ",cInfCpl)
+            if nPosAux > 0
+                nPosAux += 7
+                cNumMov := SubStr(cInfCpl,nPosAux,TamSX3("L1_NUMMOV")[1])
+            endif
+
+            //-- numero da estação das informações complementares
+            nPosAux := At("ESTACAO: ",cInfCpl)
+            if nPosAux > 0
+                nPosAux += 9
+                cNumEst := SubStr(cInfCpl,nPosAux,TamSX3("L1_ESTACAO")[1])
+            else
+                cError += "Não foi encontrada a informação ESTACAO nas informações complementares do XML! "
+            endif
+
+            //-- codigo vendedor das informações complementares
+            nPosAux := At("/ Vendedor: ",cInfCpl)
+            if nPosAux > 0
+                nPosAux += 12
+                cVendedor := SubStr(cInfCpl,nPosAux,TamSX3("L1_VEND")[1])
+            else
+                cError += "Não foi encontrada a informação VENDEDOR nas informações complementares do XML! "
+            endif
+            
+            //-- valida CNPJ do emitente do XML
+            If empty(cError) .AND. AllTrim(SM0->M0_CGC) <> AllTrim(oEmitNfce:_CNPJ:TEXT)
+                cError += "CNPJ do arquivo XML diferente do CNPJ do sistema. "
+            EndIf
+
+            //-- variaveis a serem utilizadas nos novos orçamentos gerados
+            cDocumento := PADL(AllTrim(oIdeNfce:_NNF:TEXT),TamSx3("L1_DOC")[1],"0")
+            cSerie := AllTrim(PADL(AllTrim(oIdeNfce:_SERIE:TEXT),TamSx3("L1_SERIE")[1],cZerEsq)) //dependendo do cliente, pode ou não ter zeros a esquerda
+            dEmisNf := StoD(SubStr(oIdeNfce:_DHEMI:TEXT,1,4)+SubStr(oIdeNfce:_DHEMI:TEXT,6,2)+SubStr(oIdeNfce:_DHEMI:TEXT,9,2))
+            cHora := SubStr(oIdeNfce:_DHEMI:TEXT,12,8)
+
+            If oDestNfce == Nil
+                cCodCli := PadR(SuperGetMV("MV_CLIPAD",,"000001"),TAMSX3("L1_CLIENTE")[1])
+                cLojCli := PadR(SuperGetMV("MV_LOJAPAD",,"01"),TAMSX3("L1_LOJA")[1])
+            Else
+                If XmlChildEx(oDestNfce,"_CPF") != Nil 
+                    SA1->( DbSetOrder(3) ) //A1_FILIAL+A1_CGC
+                    If SA1->( DbSeek(xFilial("SA1")+AllTrim(oDestNfce:_CPF:TEXT) ) )
+                        cCodCli := SA1->A1_COD
+                        cLojCli := SA1->A1_LOJA
+                    EndIf
+                elseif XmlChildEx(oDestNfce,"_CNPJ") != Nil 
+                    SA1->( DbSetOrder(3) ) //A1_FILIAL+A1_CGC
+                    If SA1->( DbSeek(xFilial("SA1")+AllTrim(oDestNfce:_CNPJ:TEXT) ) )
+                        cCodCli := SA1->A1_COD
+                        cLojCli := SA1->A1_LOJA
+                    EndIf
+                ElseIf Type("uTmpXML:_IDESTRANGEIRO:TEXT") != "U" //LjRTemNode(aDestNfce,"_IDESTRANGEIRO")
+                    cCodCli := PadR(SuperGetMV("MV_CLIPAD",,"000001"),TAMSX3("L1_CLIENTE")[1])
+                    cLojCli := PadR(SuperGetMV("MV_LOJAPAD",,"01"),TAMSX3("L1_LOJA")[1])
+                EndIf
+            EndIf
+
+            if empty(cCodCli)
+                cError += "Cliente não encontrado no cadastro do sistema. "
+            endif
+
+            //valido itens do XML
+            For nX := 1 to Len(aItemNfce)
+                cBico := ""; cBomba := ""; cTanque := ""; cCodAbast := ""; cLocAbast := ""
+			    nEncIni := 0; nEncFin := 0; nDesconto := 0;  nAcrescim := 0
+
+                oItemTemp := aItemNfce[nX]
+                if (oAux := XmlChildEx(oItemTemp,"_PROD"))!=Nil .AND. ;
+                        (oAux := XmlChildEx(oAux,"_COMB"))!=Nil .AND. ;
+                        (oAux := XmlChildEx(oAux,"_ENCERRANTE"))!=Nil
+
+                    cBico := oItemTemp:_PROD:_COMB:_ENCERRANTE:_NBICO:TEXT
+                    cTanque := oItemTemp:_PROD:_COMB:_ENCERRANTE:_NTANQUE:TEXT
+                    If (oAux := XmlChildEx(oAux,"_NBOMBA"))!=Nil
+                        cBomba := oItemTemp:_PROD:_COMB:_ENCERRANTE:_NBOMBA:TEXT
+                    EndIf
+                    nEncIni := Val(oItemTemp:_PROD:_COMB:_ENCERRANTE:_VENCINI:TEXT)
+                    nEncFin := Val(oItemTemp:_PROD:_COMB:_ENCERRANTE:_VENCFIN:TEXT)
+                EndIf
+                if (oAux := XmlChildEx(oItemTemp,"_PROD"))!=Nil .AND. (oAux := XmlChildEx(oAux,"_VDESC"))!=Nil
+                    nDesconto := Val(oItemTemp:_PROD:_VDESC:TEXT)
+                endif
+                if (oAux := XmlChildEx(oItemTemp,"_PROD"))!=Nil .AND. (oAux := XmlChildEx(oAux,"_VOUTRO"))!=Nil
+                    nAcrescim := Val(oItemTemp:_PROD:_VOUTRO:TEXT)
+                endif
+
+                aadd(aItensXML,{AllTrim(oItemTemp:_PROD:_CPROD:TEXT), Val(oItemTemp:_PROD:_QCOM:TEXT), Val(oItemTemp:_PROD:_VUNCOM:TEXT), Val(oItemTemp:_PROD:_VPROD:TEXT), nDesconto, nAcrescim, cBico, cBomba, cTanque, nEncIni, nEncFin})
+            next nX
+
+        endif
+
+        if empty(cError)
+            cNumImp := GravaOrcamento(@cError, cDocumento, cSerie, dEmisNf, cHora, cKeyNfce, cCodCli, cLojCli, aItensXML, {cNumPDV, cNumOpe, cNumMov, cNumEst}, cInfCpl, cVendedor)
+
+            if !empty(cNumImp)
+                MsgInfo("Venda importada com sucesso! Numero do orçamento: " + cNumImp + CRLF ;
+                    + "Confira a venda no banco de dados e altere o L1_SITUA para RX caso tudo ok.","Atencao")
+                lRet := .T.
+            endif
+
+            if !empty(cError)
+                MsgInfo(cError)
+                lRet := .F.
+            endif
+        endif
+
+    EndIf
+
+Return lRet
+
+
+/*/{Protheus.doc} GravaOrcamento
+Importa a venda via XML enviado
+@author  author
+@since   date
+@version version
+/*/
+Static Function GravaOrcamento(cError, cDocumento, cSerie, dEmisNf, cHora, cKeyNfce, cCodCli, cLojCli, aItensXML, aNumPDV, cInfCpl, cVendedor)
+
+	Local aCabec 		:= {}
+	Local aItens 		:= {}
+	Local aItem  		:= {}
+	Local nVlrUnit		:= 0
+	Local nCountVl		:= 0
+	Local aParcelas 	:= {}
+	Local aParcela 		:= {}
+	Local nValTot		:= 0
+	Local cNumImp		:= ""
+	Local nX := 0, nZ := 0
+	Local cTesSai  		:= SuperGetMV("MV_TESSAI",,"501") // Pega do parametro o TES padrao para saida
+	Local cTesPad       := ""
+	Local cMsgErr		:= ""
+	Local nPos := 0
+	Local aDadosPDV := {"0001","C01","001","01"} //PDV, Operador, Estação, Num.Movimento
+
+	Local aArea			:= GetArea()
+	Local aAreaSL1		:= SL1->(GetArea())
+	Local aAreaSL2		:= SL2->(GetArea())
+	Local dDtBkp		:= dDataBase
+
+	Local nSpedExc 		:= SuperGetMV("MV_SPEDEXC",,72)			// Indica a quantidade de horas q a NFe pode ser cancelada
+	Local nNfceExc      := SuperGetMV("MV_NFCEEXC",, 0)         // Indica a quantidade de horas q a NFCe pode ser cancelada
+	Local nHoras		:= 0                            		// Quantidade de horas da hora atual
+	Local cEspecie		:= ""
+	Local cLocAbast     := AllTrim(SuperGetMV("MV_XLOCREC",,""))  //Armazem padrão para recuperação de vendas do PDV
+
+	Local aAbast := {}
+
+	Private lAutomatoX := .T. //variavel para evitar mostrar aviso de certificado proximo do vencimento
+
+	nValTot := 0
+	dDataBase := dEmisNf
+
+    //-- retorna o dados do caixa
+    If !Empty(aNumPDV[01]) .and. Empty(aNumPDV[02])
+        aDadosPDV := RetDadosPDV(aNumPDV[01], dEmisNf, cHora) //[01] PDV, [02] Operador, [03] Estação, [04] Num.Movimento
+    ElseIf Len(aNumPDV) == 4
+        aDadosPDV := {aNumPDV[01], aNumPDV[02], aNumPDV[04], aNumPDV[03]}
+    EndIf
+
+	//-- dadas dos itens
+	For nX := 1 To Len(aItensXML) //[01-Produto][02-Quantidade][03-VlrUnitario][04-VlrTotal][05-VlrDesc][06-VlrAcres][07-cBico][08-cBomba][09-cTanque][10-nEncIni][11-nEncFin]
+
+		//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+		//³Parametro da funcao MaTesInt               ³
+		//³ExpN1 = Documento de 1-Entrada / 2-Saida   ³
+		//³ExpC1 = Tipo de Operacao Tabela "DF" do SX5³
+		//³ExpC2 = Codigo do Cliente ou Fornecedor    ³
+		//³ExpC3 = Codigo do gracao E-Entrada         ³
+		//³ExpC4 = Tipo de Operacao E-Entrada         ³
+		//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+		cTesPad := MaTesInt(2, "01", cCodCli, cLojCli, "C", aItensXML[nX][01], NIL)
+		If Empty(cTesPad)
+			cTesPad := cTesSai
+		EndIf
+
+		//aItensXML -> [01-Produto][02-Quantidade][03-VlrUnitario][04-VlrTotal][05-VlrDesc][06-VlrAcres][07-cBico][08-cBomba][09-cTanque][10-nEncIni][11-nEncFin]
+		aItem := {}
+
+		//-- ajuste do valor unitário do item
+		nCountVl := 0
+		nVlrUnit := Round(((aItensXML[nX][04]+aItensXML[nX][06])/aItensXML[nX][02]),TamSx3("L2_VRUNIT")[1])
+		if NoRound((aItensXML[nX][02]*nVlrUnit),TamSx3("L2_VRUNIT")[1]) <> NoRound((aItensXML[nX][04]+aItensXML[nX][06]),TamSx3("L2_VRUNIT")[1])
+			if NoRound((aItensXML[nX][02]*nVlrUnit),TamSx3("L2_VRUNIT")[1]) > NoRound((aItensXML[nX][04]+aItensXML[nX][06]),TamSx3("L2_VRUNIT")[1])
+				while NoRound((aItensXML[nX][02]*nVlrUnit),TamSx3("L2_VRUNIT")[1]) > NoRound((aItensXML[nX][04]+aItensXML[nX][06]),TamSx3("L2_VRUNIT")[1]) .and. nCountVl < 10
+					nVlrUnit := nVlrUnit - 0.001
+					nCountVl++
+				enddo
+			elseif NoRound((aItensXML[nX][02]*nVlrUnit),TamSx3("L2_VRUNIT")[1]) < NoRound((aItensXML[nX][04]+aItensXML[nX][06]),TamSx3("L2_VRUNIT")[1]) .and. nCountVl < 10
+				while NoRound((aItensXML[nX][02]*nVlrUnit),TamSx3("L2_VRUNIT")[1]) < NoRound((aItensXML[nX][04]+aItensXML[nX][06]),TamSx3("L2_VRUNIT")[1])
+					nVlrUnit := nVlrUnit + 0.001
+					nCountVl++
+				enddo
+			endif
+		endif
+
+		if NoRound((aItensXML[nX][02]*nVlrUnit),TamSx3("L2_VLRITEM")[1]) <> NoRound((aItensXML[nX][04]+aItensXML[nX][06]),TamSx3("L2_VLRITEM")[1])
+			nVlrUnit := ((aItensXML[nX][04]+aItensXML[nX][06])/aItensXML[nX][02])
+		endif
+
+		aadd(aItem, { "LR_PRODUTO", aItensXML[nX][01], NIL})
+		aadd(aItem, { "LR_QUANT", aItensXML[nX][02], NIL})
+		aadd(aItem, { "LR_PRCTAB", NoRound(((aItensXML[nX][04]+aItensXML[nX][06])/aItensXML[nX][02]),TamSx3("L2_PRCTAB")[1]), NIL})
+		if aItensXML[nX][05] > 0
+			aadd(aItem, { "LR_VALDESC", aItensXML[nX][05], NIL})
+		else
+			aadd(aItem, { "LR_VRUNIT", nVlrUnit, NIL})
+			aadd(aItem, { "LR_VLRITEM", (aItensXML[nX][04]+aItensXML[nX][06]-aItensXML[nX][05]), NIL})
+		endif
+
+		//aItensXML -> [01-Produto][02-Quantidade][03-VlrUnitario][04-VlrTotal][05-VlrDesc][06-VlrAcres][07-cBico][08-cBomba][09-cTanque][10-nEncIni][11-nEncFin]
+		cCodAbast := ""
+		nPosPDV := At("Item: "+StrZero(nX,TamSx3("L2_ITEM")[1],0),cInfCpl)
+		//Item: 01 / Num.Abast: 000000000000012
+		If nPosPDV > 0
+			nPosPDV += 22
+			cCodAbast := SubStr(cInfCpl,nPosPDV,TamSx3("L2_MIDCOD")[1])
+		EndIf
+
+		if !Empty(cCodAbast)
+
+            MID->(DbSetOrder(1)) //MID_FILIAL+MID_CODABA
+	        If Empty(cLocAbast) .AND. MID->( DbSeek( xFilial("MID") + cCodAbast ) ) .AND. !empty(MID->MID_CODTAN)
+                MHZ->(DbSetOrder(1)) //MHZ_FILIAL+MHZ_CODTAN
+                If MHZ->(DbSeek(xFilial("MHZ") + MID->MID_CODTAN))
+                    cLocAbast := MHZ->MHZ_LOCAL
+                endif
+			endif
+
+			aadd(aItem, { "LR_MIDCOD", cCodAbast, NIL})
+
+		elseif Len(aItensXML[nX])>6 .and. !Empty(aItensXML[nX][07])
+
+			aAbast := RetAbaste(dEmisNf, aItensXML[nX][01], aItensXML[nX][02], aItensXML[nX][07], aItensXML[nX][08], aItensXML[nX][09], aItensXML[nX][10], aItensXML[nX][11])
+
+			cCodAbast := aAbast[01]
+			cLocAbast := iif(Empty(cLocAbast) .and. !Empty(aAbast[02]), aAbast[02], cLocAbast)
+
+			if !Empty(cCodAbast)
+				aadd(aItem, { "LR_MIDCOD", cCodAbast, NIL})
+			endif
+
+		endif
+
+        if !Empty(cCodAbast)
+            aadd(aItem, { "LR_MICCOD", Posicione("MID",1,xFilial("MID")+cCodAbast,"MID_CODBIC"), NIL})
+        endif
+
+		if Empty(cLocAbast)
+            SLG->(DbSetOrder(1)) //LG_FILIAL+LG_CODIGO
+            SLG->(DbSeek(xFilial("SLG")+aDadosPDV[03]))
+			cLocAbast := RetLocal(aItensXML[nX][01])
+		endif
+
+		if !Empty(cLocAbast)
+			aadd(aItem, { "LR_LOCAL", cLocAbast, NIL} )
+		endif
+
+		aadd(aItens, aItem)
+
+		nValTot += (aItensXML[nX][04] + aItensXML[nX][06] - aItensXML[nX][05])
+
+	Next nX
+
+	//-- dados do cabeçalho e forma de pagamento do orçamento de produtos que não são abastecimentos
+	If Len(aItens)>0 .and. nValTot>0
+
+		//preenche o cabeçalho do orçamento
+		aadd(aCabec, {"LQ_CLIENTE"		, cCodCli		, NIL} )
+		aadd(aCabec, {"LQ_LOJA"			, cLojCli		, NIL} )
+		aadd(aCabec, {"LQ_VLRTOT"		, nValTot	  	, NIL} )
+		aadd(aCabec, {"LQ_VLRLIQ"		, nValTot		, NIL} )
+		aadd(aCabec, {"LQ_DINHEIR" 		, nValTot 	 	, NIL} )
+		aadd(aCabec, {"LQ_CHEQUES" 		, 0 	 		, NIL} )
+		aadd(aCabec, {"LQ_CARTAO" 		, 0				, NIL} )
+		aadd(aCabec, {"LQ_VLRDEBI" 		, 0				, NIL} )
+		aadd(aCabec, {"LQ_CONVENI" 		, 0 			, NIL} )
+		aadd(aCabec, {"LQ_VALES" 		, 0 			, NIL} )
+		aadd(aCabec, {"LQ_OUTROS" 		, 0   			, NIL} )
+
+		//sempre vai importar como dinheiro, para depois ajustarem ou devolver a nota
+		aParcela	:= {}
+		aadd(aParcela, {"L4_FORMA"  	, "R$"					 	, NIL} )
+		aadd(aParcela, {"L4_DATA"  		, dDataBase  				, NIL} )
+		aadd(aParcela, {"L4_VALOR"  	, nValTot					, NIL} )
+		aadd(aParcela, {"L4_ADMINIS" 	, "                    " 	, NIL} )
+		aadd(aParcela, {"L4_FORMAID"	, " "              			, NIL} )
+		aadd(aParcela, {"L4_MOEDA"  	, SuperGetMV("MV_MOEDA1",,0), NIL} )
+		aadd(aParcelas,aParcela)
+
+	EndIf
+
+	If Len(aItens)>0 .and. nValTot>0 .and. Len(aCabec)>0 .and. Len(aParcelas)>0
+
+		// inicio o controle de transação para inclusão do orçamento
+		BeginTran()
+
+		Private lMsHelpAuto := .T. // Variavel de controle interno do ExecAuto
+		Private lMsErroAuto := .F. // Variavel que informa a ocorrência de erros no ExecAuto
+		Private INCLUI 		:= .T. // Variavel necessária para o ExecAuto identificar que se trata de uma inclusão
+		Private ALTERA 		:= .F. // Variavel necessária para o ExecAuto identificar que se trata de uma inclusão
+
+		SetFunName("LOJA701")
+		nModulo := 12
+
+		//LjMsgRun("Aguarde... Gerando Orçamento...",,{|| MSExecAuto({|a,b,c,d,e,f,g,h| Loja701(a,b,c,d,e,f,g,h)},.F.,3,"","",{},aCabec,aItens,aParcelas)})
+		MSExecAuto({|a,b,c,d,e,f,g,h| Loja701(a,b,c,d,e,f,g,h)},.F.,3,"","",{},aCabec,aItens,aParcelas)
+
+		// essas variáveis devem ser apagadas, senão irá influenciar no fonte padrão de finalização da venda
+		lMsHelpAuto := NIL
+		INCLUI := NIL
+		ALTERA := NIL
+
+		If lMsErroAuto
+
+			// mostra a tela de erros do Execauto
+			cMsgErr += MostraErro("\temp") //MostraErro()
+			// cancelo a transação de inclusão do orçamento
+			DisarmTransaction()
+			// libera sequencial
+			RollBackSx8()
+
+			cError += "FALHA AO INCLUIR ORCAMENTO!" + CRLF
+			cError += "Erro: " + cMsgErr + CRLF
+
+		Else
+			// confirmo a numeração
+			ConfirmSX8()
+
+			// numero do orçamento
+			cNumImp := SL1->L1_NUM
+
+			//força a gravação do código de abastecimento: MID_CODIGO
+			SL2->(DbSetOrder(1)) //L2_FILIAL+L2_NUM+L2_ITEM+L2_PRODUTO
+			For nZ:=1 to len(aItens)
+				nPosProd := Ascan(aItens[nZ],{|x| Alltrim(Upper(x[1]))="LR_PRODUTO"})
+				If nPosProd > 0 .and. SL2->( DbSeek( xFilial("SL2") + cNumImp + StrZero(nZ,TamSx3("L2_ITEM")[1],0) + aItens[nZ][nPosProd][2] ) )
+					nPosMID := Ascan(aItens[nZ],{|x| Alltrim(Upper(x[1]))="LR_MIDCOD"})
+					If nPosMID > 0 .and. !Empty(aItens[nZ][nPosMID][2])
+						RecLock("SL2",.F.)
+						SL2->L2_MIDCOD := aItens[nZ][nPosMID][2]
+						SL2->( MsUnlock() )
+					EndIf
+                    nPosMIC := Ascan(aItens[nZ],{|x| Alltrim(Upper(x[1]))="LR_MICCOD"})
+					If nPosMIC > 0 .and. !Empty(aItens[nZ][nPosMID][2])
+						RecLock("SL2",.F.)
+						SL2->L2_MICCOD := aItens[nZ][nPosMIC][2]
+						SL2->( MsUnlock() )
+					EndIf
+				EndIf
+			Next
+
+			If !Empty(cNumImp)
+
+				//-- grava os dados da venda para integrar com retaguarda
+				SL2->( DbSetOrder(1) ) // L2_FILIAL + L2_NUM + L2_ITEM + L2_PRODUTO
+				SL2->( DbGoTop() )
+				SL2->( DbSeek( xFilial("SL2") + cNumImp ) )
+				while !SL2->( Eof() ) .AND. SL2->L2_FILIAL == xFilial("SL2") .AND. SL2->L2_NUM == cNumImp
+
+					//aItensXML -> [01-Produto][02-Quantidade][03-VlrUnitario][04-VlrTotal][05-VlrDesc][06-VlrAcres][07-cBico][08-cBomba][09-cTanque][10-nEncIni][11-nEncFin]
+					nPos := aScan( aItensXML, { |x| AllTrim(x[1]) == AllTrim(SL2->L2_PRODUTO) .and. x[2] == SL2->L2_QUANT } )
+					if nPos > 0 .and. SL2->(L2_VLRITEM) <> (aItensXML[nPos][04] + aItensXML[nPos][06] - aItensXML[nPos][05])
+
+						cError += "ORCAMENTO: " + cNumImp + CRLF
+						cError += "ERRO NO TOTAL DO ITEM: " + CRLF
+						cError += "ITEM: " + SL2->L2_ITEM + CRLF
+						cError += "TOTAL ITEM (SL2): " + cValToChar(SL2->(L2_VLRITEM)) + CRLF
+						cError += "VLR ITEM (SL2): " + cValToChar(SL2->L2_VLRITEM + SL2->L2_VALDESC) + CRLF
+						cError += "DESCONTO (SL2): " + cValToChar(SL2->L2_VALDESC) + CRLF
+						cError += "TOTAL ITEM (XML): " + cValToChar(aItensXML[nPos][04]-aItensXML[nPos][05]) + CRLF
+						cError += "VLR ITEM (XML): " + cValToChar(aItensXML[nPos][04]) + CRLF
+						cError += "ACRESCIMO (XML): " + cValToChar(aItensXML[nPos][06]) + CRLF
+						cError += "DESCONTO (XML): " + cValToChar(aItensXML[nPos][05]) + CRLF
+
+						cNumImp := ""
+						Exit //sai do While
+
+					elseif nPos <= 0
+
+						cError += "ORCAMENTO: " + cNumImp + CRLF
+						cError += "ERRO NAO ENCONTRADO O ITEM NO XML: " + CRLF
+						cError += "ITEM: " + SL2->L2_ITEM + CRLF
+						cError += "TOTAL ITEM (SL2): " + cValToChar(SL2->(L2_VLRITEM)) + CRLF
+						cError += "VLR ITEM (SL2): " + cValToChar(SL2->L2_VLRITEM + SL2->L2_VALDESC) + CRLF
+						cError += "DESCONTO (SL2): " + cValToChar(SL2->L2_VALDESC) + CRLF
+
+						cNumImp := ""
+						Exit //sai do While
+
+					endif
+
+					SL2->( DbSkip() )
+				enddo
+
+			EndIf
+
+			If !Empty(cNumImp)
+
+				//-- grava os dados da venda para integrar com retaguarda
+				SL2->( DbSetOrder(1) ) // L2_FILIAL + L2_NUM + L2_ITEM + L2_PRODUTO
+				SL2->( DbGoTop() )
+				SL2->( DbSeek( xFilial("SL2") + SL1->L1_NUM ) )
+				while !SL2->( Eof() ) .AND. SL2->L2_FILIAL == xFilial("SL2") .AND. SL2->L2_NUM == SL1->L1_NUM
+
+					RecLock("SL2",.F.)
+					SL2->L2_DOC := cDocumento
+					SL2->L2_SERIE := cSerie
+					SL2->L2_PDV := aDadosPDV[01]
+					SL2->L2_VENDIDO := 'S'
+
+					//-- No XML, geralmente não é possivel identifiar o desconto, em alguns casos necessário ajuste do preço de tabela de desconto
+					//-- Esse ajuste pretente evitar o seguinte erro no fechamento de caixa: "Inconsistência no valor do item do cupom."
+					nVLRITEM := (NoRound((SL2->L2_QUANT*SL2->L2_PRCTAB),2) - SL2->L2_DESCPRO - SL2->L2_VALDESC)
+					If nVLRITEM <> SL2->L2_VLRITEM
+						If nVLRITEM < SL2->L2_VLRITEM
+
+							nCount := 0
+							nVALDESC := SL2->L2_VALDESC
+							nPRCTAB  := SL2->L2_PRCTAB
+							While nVLRITEM < SL2->L2_VLRITEM .and. nCount <= 10
+								nPRCTAB  := SL2->L2_PRCTAB + 0.001
+								nVALDESC := SL2->L2_VLRITEM + SL2->L2_DESCPRO - NoRound((SL2->L2_QUANT*nPRCTAB),2)
+								nVLRITEM := (NoRound((SL2->L2_QUANT*nPRCTAB),2) - SL2->L2_DESCPRO - nVALDESC)
+								nCount ++
+							EndDo
+
+							If nVLRITEM == SL2->L2_VLRITEM
+								SL2->L2_VALDESC := nVALDESC
+								SL2->L2_PRCTAB  := nPRCTAB
+							EndIf
+
+						Else
+
+							nCount := 0
+							nVALDESC := SL2->L2_VALDESC
+							nPRCTAB  := SL2->L2_PRCTAB
+							While nVLRITEM > SL2->L2_VLRITEM .and. nCount <= 10
+								nPRCTAB  := SL2->L2_PRCTAB - 0.001
+								nVALDESC := SL2->L2_VLRITEM + SL2->L2_DESCPRO - NoRound((SL2->L2_QUANT*nPRCTAB),2)
+								nVLRITEM := (NoRound((SL2->L2_QUANT*nPRCTAB),2) - SL2->L2_DESCPRO - nVALDESC)
+								nCount ++
+							EndDo
+
+							If nVLRITEM == SL2->L2_VLRITEM
+								SL2->L2_VALDESC := nVALDESC
+								SL2->L2_PRCTAB  := nPRCTAB
+							EndIf
+
+						EndIf
+					EndIf
+
+					SL2->( MsUnlock() )
+
+					SL2->( DbSkip() )
+				enddo
+
+				nHoras := SubtHoras( dEmisNf, cHora, Date(), SubStr(Time(),1,2)+":"+SubStr(Time(),4,2) )
+				cEspecie := LjRetEspec(cSerie)
+
+				If "SPED" $ cEspecie
+					nNfceExc := nSpedExc
+				ElseIf "NFCE" $ cEspecie
+					//Tratamento para manter o legado do parametro MV_SPEDEXC
+					If nNfceExc <= 0
+						nNfceExc := nSpedExc
+					EndIf
+				EndIf
+
+				RecLock("SL1",.F.)
+				SL1->L1_PDV := aDadosPDV[01] 
+				SL1->L1_OPERADO := aDadosPDV[02] 
+				SL1->L1_ESTACAO := aDadosPDV[03] 
+				SL1->L1_NUMMOV := aDadosPDV[04]
+                SL1->L1_VEND := cVendedor
+				SL1->L1_STATUS := 'XSEFAZ' //'XXML' //-- log para identifiar que a venda foi recuperada
+				SL1->L1_DOC := cDocumento
+				SL1->L1_NUMCFIS := cDocumento
+				If SL1->(FieldPos("L1_SDOC")) > 0
+					SL1->L1_SDOC := cSerie
+				EndIf
+				SL1->L1_SERIE := cSerie
+				SL1->L1_EMISNF := dEmisNf
+				SL1->L1_HORA := cHora
+				SL1->L1_KEYNFCE := cKeyNfce
+				//SL1->L1_RETSFZ := cRetSfz
+                SL1->L1_SITUA := 'RX'
+				SL1->L1_TIPO := 'V'
+                SL1->L1_ESPECIE := cEspecie
+
+				//se for NF-e
+				If !Empty(SL1->L1_KEYNFCE) .and. SubStr(L1_KEYNFCE,21,2) == '55'
+					SL1->L1_IMPNF := .T. //identifica que é NF-e
+					SL1->L1_IMPRIME = '1S'
+					SL1->L1_STBATCH = '1'
+				Else
+					SL1->L1_IMPRIME := '5S'
+				EndIf
+
+				SL1->L1_TPFRET := 'S'
+				SL1->L1_TPORC := 'E'
+                
+				//If SuperGetMV("MV_XMSTORC",,.T.) .and. nHoras < nNfceExc
+				//	SL1->L1_STORC := 'A' //-- cancela a nota automaticamente após 'explodir' via gravabatch
+				//EndIf
+
+				SL1->( MsUnlock() )
+
+			EndIf
+
+		EndIf
+
+		// finalizo o controle de transação para inclusão do orçamento
+		EndTran()
+
+		// essas variáveis devem ser apagadas, senão irá influenciar no fonte padrão de finalização da venda
+		lMsErroAuto := NIL
+
+	EndIf
+
+	dDataBase := dDtBkp
+
+	RestArea(aAreaSL1)
+	RestArea(aAreaSL2)
+	RestArea(aArea)
+
+Return cNumImp
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} RetDadosPDV
+Retorna dados do PDV
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function RetDadosPDV(cNumPDV, dEmisNf, cHora)
+
+	Local aRet := {"0001","C01","001","01"} //PDV, Operador, Estação, Num.Movimento
+	Local aArea := GetArea()
+	Local aAreaSLW := SLW->(GetArea())
+
+	SLW->(DbSetOrder(2)) //LW_FILIAL+LW_PDV+DTOS(LW_DTABERT)
+	If SLW->(DbSeek(xFilial("SLW")+PADR(AllTrim(cNumPDV),TamSx3("LW_PDV")[1])+SubStr(DtoS(dEmisNf),1,6)))
+		While SLW->(!Eof()) .and. SLW->LW_FILIAL == xFilial("SLW") .and. SLW->LW_PDV == PADR(AllTrim(cNumPDV),TamSx3("LW_PDV")[1]) .and. DtoS(dEmisNf) >= DTOS(SLW->LW_DTABERT)
+			If (DtoS(SLW->LW_DTABERT)+SubStr(SLW->LW_HRABERT,1,5)) <= (DtoS(dEmisNf)+SubStr(cHora,1,5)) .and. (Empty(DtoS(SLW->LW_DTFECHA)) .or. ((DtoS(SLW->LW_DTFECHA)+SubStr(SLW->LW_HRFECHA,1,5)) >= (DtoS(dEmisNf)+SubStr(cHora,1,5))))
+				aRet := {SLW->LW_PDV, SLW->LW_OPERADO, SLW->LW_ESTACAO, SLW->LW_NUMMOV}
+				Exit// sai do While
+			EndIf
+			SLW->(DbSkip())
+		EndDo
+	EndIf
+
+	RestArea(aAreaSLW)
+	RestArea(aArea)
+    
+Return aRet
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} RetAbaste
+Retorna o código do abastecimento, conforme parametros
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function RetAbaste(dEmisNf, cProduto, nQuant, cBico, cBomba, cTanque, nEncIni, nEncFin)
+
+	Local aArea		:= GetArea()
+	Local aAreaMID  := MID->(GetArea())
+	Local cCodAbast := ""
+	Local cLocAbast := ""
+	Local cCondicao	:= ""
+	Local bCondicao
+
+	If !Empty(cBico) .and. nEncFin > 0
+
+		cCondicao := "MID_FILIAL = '" + xFilial("MID") + "'"
+		cCondicao += " .AND. AllTrim(MID_XPROD) = '" + AllTrim(cProduto) + "'"
+		//cCondicao += " .AND. MID_LITABA = " + cValToChar(Round(nQuant,TamSX3("MID_LITABA")[2])) + ""
+		cCondicao += " .AND. INT(MID_ENCFIN) = INT(" + cValToChar(nEncFin) + ")"
+		cCondicao += " .AND. MID_CODTAN = '" + cTanque + "'"
+		cCondicao += " .AND. Val(MID_CODBIC) = " + cBico + ""
+		cCondicao += " .AND. Val(MID_CODBOM) = " + cBomba + ""
+
+		MID->(DbClearFilter()) //-- limpo os filtros da MID
+		bCondicao := "{|| " + cCondicao + " }"
+		MID->(DbSetFilter(&bCondicao,cCondicao))
+		MID->(DbGoTop())
+
+		While MID->(!Eof()) .and. MID->MID_FILIAL == xFilial("MID")
+
+			If MID->MID_LITABA = nQuant
+
+				cCodAbast := MID->MID_CODABA
+
+                MHZ->(DbSetOrder(1)) //MHZ_FILIAL+MHZ_CODTAN
+                If MHZ->(DbSeek(xFilial("MHZ") + MID->MID_CODTAN))
+                    cLocAbast := MHZ->MHZ_LOCAL
+                endif
+
+				Exit //sai do While
+			EndIf
+			MID->(DbSkip())
+		EndDo
+
+		MID->(DbClearFilter()) //-- limpo os filtros da MID
+	EndIf
+
+	RestArea(aAreaMID)
+	RestArea(aArea)
+    
+Return {cCodAbast,cLocAbast}
+
+/*/{Protheus.doc} RetLocal
+Retorna o local estoque
+@author thebr
+@since 30/11/2018
+@version 1.0
+@return Nil
+@param cProd, characters, descricao
+@type function
+/*/
+Static Function RetLocal(cProd)
+
+	Local aArea		:= GetArea()
+	Local cLocal 	:= Space(TamSX3("L2_LOCAL")[1])
+
+	//Verifica se possui Estoque de Exposição (no proceso da Marajó só pode haver 01 (um))
+	DbSelectArea("U59")
+	U59->(DbSetOrder(2)) //U59_FILIAL+U59_PRODUT
+
+	/*
+	Pablo Nunes
+	Data: 12/12/2017
+	Ajuste: com a finalidade de atender clientes que possuem mais de um estoque de exposição para o mesmo produto.
+	Neste caso, deverá ser criado o campo "LG_XLOCAL" no cadastro de estação e alimenta-lo com o estoque de exposição do PDV.
+	*/
+	If SLG->(FieldPos("LG_XLOCAL"))>0 .and. !Empty(SLG->LG_XLOCAL)
+		cLocal := SLG->LG_XLOCAL
+	ElseIf U59->(DbSeek(xFilial("U59")+cProd))
+		cLocal := U59->U59_LOCAL
+	Else
+		//Senão, utilização almoxarifado padrão
+		DbSelectArea("SB1")
+		SB1->(DbSetOrder(1)) //B1_FILIAL+B1_COD
+
+		If SB1->(DbSeek(xFilial("SB1")+cProd))
+			cLocal := SB1->B1_LOCPAD
+		Endif
+	Endif
+
+	RestArea(aArea)
+
+Return cLocal
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} LjRetEspec
+Retorna a Especie a ser utilizada de acordo com a configuracao dos parametros MV_LOJANF e MV_ESPECIE.
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function LjRetEspec(_cSerie)
+
+	Local cEspecie 	:= "NF" // Especie da NF
+	Local cTiposDoc	:= "" 	// Tipos de documentos fiscais utilizados na emissao de notas fiscais
+	Local nCount 	:= 0
+	Local nPosSign	:= 0
+
+	If cPaisLoc == "BRA"
+		cTiposDoc := AllTrim( SuperGetMV( 'MV_ESPECIE' ) ) // Tipos de documentos fiscais utilizados na emissao de notas fiscais
+		DbSelectArea("SX5")
+		SX5->( DbSetOrder(1) )
+		If cTiposDoc <> NIL
+			cTiposDoc := StrTran( cTiposDoc, ";", CRLF)
+
+			For nCount := 1 TO MLCount( cTiposDoc )
+				cEspecie := ALLTRIM( StrTran( MemoLine( cTiposDoc,, nCount ), CHR(13), CHR(10) ) )
+				nPosSign := Rat( "=", cEspecie)
+
+				If nPosSign > 0 .AND. ALLTRIM( _cSerie ) == ALLTRIM( SUBSTR( cEspecie, 1, nPosSign - 1 ) )
+					If SX5->( DbSeek( xFilial("SX5") + "42" + SUBSTR(cEspecie, nPosSign + 1) ) )
+						cEspecie := SUBSTR( cEspecie, nPosSign + 1 )
+					Else
+						cEspecie := SPACE(5)
+					Endif
+					Exit
+				Else
+					cEspecie := SPACE(5)
+				Endif
+			Next nCount
+
+		Endif
+	Endif
+
+Return cEspecie

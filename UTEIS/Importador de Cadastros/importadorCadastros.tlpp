@@ -1,0 +1,40 @@
+/*/{Protheus.doc} User Function importadorCadastros
+  Rotina para importar cadastros a partir de arquivos CSV
+  @type  Function
+  @author Fabrício Ferreira
+  @since 01/09/2023
+  @version 1
+  /*/
+using namespace Duofy.importadorCadastros
+User Function importadorCadastros()
+	Local aParamBox := {}
+	Local aCadastros := {;
+		"Veículos",;
+		"Motoristas",;
+		"Transportadoras",;
+		"Negociações Cliente",;
+		"Preço Negociado Cliente",;
+		"Emitente CH";
+		}
+	Local aRotinas := {;
+		{|| U_importaGenerico(AllTrim(MV_PAR02),"DA3",1,,{"A1_CGC"},{|aLinha, aHeader, nLinha| U_tratamentoEspecialVeiculos(aLinha, aHeader, nLinha)})},;
+		{|| U_importaGenerico(AllTrim(MV_PAR02),"DA4",,"DA4_COD")},;
+		{|| U_importaGenerico(AllTrim(MV_PAR02),"SA4",,"A4_COD")},;
+		{|| U_importaNegociacoesCliente(AllTrim(MV_PAR02))},;
+		{|| U_importaPrecoNegociado(AllTrim(MV_PAR02))},;
+		{|| U_importaEmitenteCH(AllTrim(MV_PAR02))},;
+		}
+	Local nRotina as numeric
+	If Type("cEmpAnt") != "C"
+		RpcSetType(3)
+		RpcSetEnv("99", "01")
+	EndIf
+	aAdd(aParamBox,{2,"Cadastro a Importar",aCadastros[1],aCadastros,90,"",.T.})
+	aAdd(aParamBox,{6,"Arquivo",Space(100),"","File(&(ReadVar()))","",90,.T.,"Todos os arquivos (*.csv) |*.csv"})
+	If !ParamBox(aParamBox,"Importador Cadastros",,,,,,,,,.F.,.F.)
+		Return
+	EndIf
+	nRotina := aScan(aCadastros, MV_PAR01)
+	Processa(aRotinas[nRotina], "Importando "+MV_PAR01+"...")
+Return
+

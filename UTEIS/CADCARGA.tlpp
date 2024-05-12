@@ -1,0 +1,241 @@
+#Include "totvs.ch"
+
+namespace TPDVPOSTO
+
+/*/{Protheus.doc} User Function CadastraCarga
+    Função para gerar cadastro de cargas do sigaloja/totvspdv
+    Uso: TPDVPOSTO.U_CadastraCarga()
+
+    @type  Function
+    @author danilo
+    @since 10/11/2023
+    @version 1
+    /*/
+User Function CadastraCarga()
+    
+    Local nX
+    Local aTables := {}
+    Local cTabPfx
+    Local cError := ""
+    
+    aadd(aTables, "ACY")
+    aadd(aTables, "CDY")
+    aadd(aTables, "CE0")
+    aadd(aTables, "CIN")
+    aadd(aTables, "CIO")
+    aadd(aTables, "CJ0")
+    aadd(aTables, "CJ1")
+    aadd(aTables, "CJ2")
+    aadd(aTables, "CLK")
+    aadd(aTables, "DA0")
+    aadd(aTables, "DA1")
+    aadd(aTables, "DA3")
+    aadd(aTables, "DA4")
+    aadd(aTables, "F20")
+    aadd(aTables, "F21")
+    aadd(aTables, "F22")
+    aadd(aTables, "F23")
+    aadd(aTables, "F24")
+    aadd(aTables, "F25")
+    aadd(aTables, "F26")
+    aadd(aTables, "F27")
+    aadd(aTables, "F28")
+    aadd(aTables, "F2B")
+    aadd(aTables, "F2E")
+    aadd(aTables, "F2G")
+    aadd(aTables, "F3K")
+    aadd(aTables, "MDE")
+    aadd(aTables, "MDG")
+    aadd(aTables, "MHW")
+    aadd(aTables, "MHX")
+    aadd(aTables, "MHY")
+    aadd(aTables, "MHZ")
+    aadd(aTables, "MIC")
+    aadd(aTables, "SA1")
+    aadd(aTables, "SA3")
+    aadd(aTables, "SA6")
+    aadd(aTables, "SAE")
+    aadd(aTables, "SAH")
+    aadd(aTables, "SB1")
+    aadd(aTables, "SB5")
+    aadd(aTables, "SBM")
+    aadd(aTables, "SBZ")
+    aadd(aTables, "SE4")
+    aadd(aTables, "SED")
+    aadd(aTables, "SF4")
+    aadd(aTables, "SF7")
+    aadd(aTables, "SFM")
+    aadd(aTables, "SLF")
+    aadd(aTables, "SLG")
+    aadd(aTables, "SLK")
+    aadd(aTables, "SM4")
+    aadd(aTables, "SZO")
+    aadd(aTables, "U00")
+    aadd(aTables, "U04")
+    aadd(aTables, "U0A")
+    aadd(aTables, "U0B")
+    aadd(aTables, "U0C")
+    aadd(aTables, "U0D")
+    aadd(aTables, "U25")
+    aadd(aTables, "U44")
+    aadd(aTables, "U52")
+    aadd(aTables, "U53")
+    aadd(aTables, "U59")
+    aadd(aTables, "U68")
+    aadd(aTables, "U92")
+    aadd(aTables, "UC2")
+    aadd(aTables, "UC4")
+    aadd(aTables, "UF2")
+    aadd(aTables, "UF6")
+    aadd(aTables, "UH8")
+    aadd(aTables, "UH9")
+    aadd(aTables, "UIB")
+    aadd(aTables, "ZE0")
+
+    if MsgYesNo("Confirma cadastrar tabelas Posto Inteligente na configuração de Carga?" + ;
+        Chr(13)+Chr(10) + Chr(13)+Chr(10) + ;
+        "#ATENÇÃO#  Confira e faça backup das tabelas MBU MBV e MBX antes do processamento.","Atenção")
+
+        //confiro se todas as tabelas tem o MSEXP e HREXP
+        for nX := 1 to len(aTables)
+            cTabPfx := iif( Left(aTables[nX],1)=="S", SubStr(aTables[nX],2,2), aTables[nX])
+
+            if (aTables[nX])->(FieldPos(cTabPfx+"_MSEXP")) == 0 .OR. (aTables[nX])->(FieldPos(cTabPfx+"_HREXP")) == 0
+                cError += "Tabela "+aTables[nX]+" não possui os campos MSEXP e HREXP." + Chr(13)+Chr(10)
+            endif
+        next nX
+
+        if !empty(cError)
+            MsgAlert(cError)
+            Return
+        endif
+
+        //CARGA INTEIRA
+        MBU->(DbSetOrder(1)) //MBU_FILIAL+MBU_CODIGO
+        if MBU->(DbSeek(xFilial("MBU")+"000001"))
+            Reclock("MBU", .F.)
+        else
+            Reclock("MBU", .T.)
+        endif
+        MBU->MBU_FILIAL := xFilial("MBU")
+        MBU->MBU_CODIGO := "000001"
+        MBU->MBU_NOME   := "CARGA MANUAL COMPLETA - POSTO"
+        MBU->MBU_DESCRI := "CARGA MANUAL COMPLETA - POSTO"
+        MBU->MBU_TIPO   := "1"
+        MBU->MBU_CODTPL := ""
+        MBU->MBU_DATA   := STOD("")
+        MBU->MBU_HORA   := ""
+        MBU->MBU_ORDEM  := ""
+        MBU->MBU_INTINC := "1" //inteira
+        MBU->(MsUnlock())
+
+        //populando MBV
+        PopulaMBV(MBU->MBU_CODIGO, aTables)
+        
+        //populando MBX
+        PopulaMBX(MBU->MBU_CODIGO, aTables)
+
+
+        //CARGA INCREMENTAL
+        MBU->(DbSetOrder(1)) //MBU_FILIAL+MBU_CODIGO
+        if MBU->(DbSeek(xFilial("MBU")+"000002")) 
+            Reclock("MBU", .F.)
+        else
+            Reclock("MBU", .T.)
+        endif
+        MBU->MBU_FILIAL := xFilial("MBU")
+        MBU->MBU_CODIGO := "000002"
+        MBU->MBU_NOME   := "CARGA AUTOMATICA - POSTO"
+        MBU->MBU_DESCRI := "CARGA AUTOMATICA - POSTO"
+        MBU->MBU_TIPO   := "1"
+        MBU->MBU_CODTPL := ""
+        MBU->MBU_DATA   := STOD("")
+        MBU->MBU_HORA   := ""
+        MBU->MBU_ORDEM  := ""
+        MBU->MBU_INTINC := "2" //incremental
+        MBU->(MsUnlock())
+
+        //populando MBV
+        PopulaMBV(MBU->MBU_CODIGO, aTables)
+
+        //populando MBX
+        PopulaMBX(MBU->MBU_CODIGO, aTables)
+
+
+        MsgInfo("Configuração de Cargas cadastradas com sucesso!")
+
+    endif
+
+Return 
+
+
+Static Function PopulaMBV(cCodCarga, aTables)
+
+    Local nX := 0
+
+    MBV->(DbSetOrder(1)) //MBV_FILIAL+MBV_CODGRP+MBV_TABELA
+    For nX := 1 to len(aTables)
+        if MBV->(DbSeek(xFilial("MBV")+cCodCarga+aTables[nX]))
+            Reclock("MBV", .F.)
+        else
+            Reclock("MBV", .T.)
+        endif
+        MBV->MBV_FILIAL := xFilial("MBV")
+        MBV->MBV_CODGRP := cCodCarga
+        MBV->MBV_TABELA := aTables[nX]
+        MBV->MBV_TIPO   := "1"
+        MBV->MBV_FILTRO := ""
+        MBV->MBV_QTDREG := 0
+        MBV->(MsUnlock())
+    next nX
+
+Return
+
+Static Function PopulaMBX(cCodCarga, aTables)
+
+    Local nX := 0
+    Local nY := 0
+    Local aFiliais := {}
+    Local cLastFil := ""
+    Local aArea := GetArea()
+    Local aAreaSM0 := SM0->(GetArea())
+
+    //forço o posicionamento na SM0
+	SM0->(DbSetOrder(1)) //M0_CODIGO+M0_CODFIL
+	SM0->(DbGoTop())
+    SM0->(DbSeek(cEmpAnt))
+	While SM0->(!Eof()) .AND. SM0->M0_CODIGO == cEmpAnt
+        aadd(aFiliais, AllTrim(SM0->M0_CODFIL))
+	 	SM0->(DbSkip())
+	EndDo
+    RestArea(aAreaSM0)
+    RestArea(aArea)
+
+    MBX->(DbSetOrder(1)) //MBX_FILIAL+MBX_CODGRP+MBX_TABELA+MBX_FIL
+    For nX := 1 to len(aTables)
+
+        For nY := 1 to len(aFiliais)
+
+            if cLastFil == aTables[nX]+xFilial(aTables[nX], aFiliais[nY])
+                LOOP
+            endif
+
+            if MBX->(DbSeek(xFilial("MBX")+aTables[nX]+xFilial(aTables[nX], aFiliais[nY]) ))
+                Reclock("MBX", .F.)
+            else
+                Reclock("MBX", .T.)
+            endif
+            MBX->MBX_FILIAL := xFilial("MBX")
+            MBX->MBX_CODGRP := cCodCarga
+            MBX->MBX_TABELA := aTables[nX]
+            MBX->MBX_FIL    := xFilial(aTables[nX], aFiliais[nY])
+            MBX->MBX_QTDREG := 0
+            MBX->(MsUnlock())
+
+            cLastFil := aTables[nX]+xFilial(aTables[nX], aFiliais[nY])
+
+        next nX
+
+    next nX
+
+Return

@@ -1,0 +1,355 @@
+/*/{Protheus.doc} User Function importaPrecoNegociado
+  Rotina para importacao de Amarração Veículos com Clientes
+  @type  Function
+  @author Fabricio Ferreira
+  @since 04/09/2023
+  @version 1.0
+  @param cArquivo, character, Arquivo a ser importado
+  /*/
+namespace Duofy.importadorCadastros
+User Function importaPrecoNegociado(cArquivo as character)
+	Local cHeader      as character
+	Local aHeader      as array
+	Local cLinha       as character
+	Local aLinha       as array
+	Local nIndex       as numeric
+	Local nLinha       as numeric
+	Local aCampos      as array
+	Local cProduto     as character
+	Local cFormaPG     as character
+	Local cCondPg      as character
+	Local cCGC         as character
+	Local cCliente     as character
+	Local cLoja        as character
+	Local dDataIni     as date
+	Local cHoraIni     as character
+	Local dDataFim     as date
+	Local cHoraFim     as character
+	Local nPrecoBase   as numeric
+	Local nPrecoVenda  as numeric
+	Local cGrupo       as character
+	Local cAdmFin      as character
+	Local lErroLinha   as logical
+	Local oFile    := FWFileReader():New(cArquivo)
+
+	aCampos := {}
+	AAdd(aCampos,"U25_PRODUT")
+	AAdd(aCampos,"U25_FORPAG")
+	AAdd(aCampos,"U25_CONDPG")
+	AAdd(aCampos,"A1_CGC")
+	AAdd(aCampos,"U25_CLIENT")
+	AAdd(aCampos,"U25_LOJA")
+	AAdd(aCampos,"U25_DTINIC")
+	AAdd(aCampos,"U25_HRINIC")
+	AAdd(aCampos,"U25_DTFIM")
+	AAdd(aCampos,"U25_HRFIM")
+	AAdd(aCampos,"U25_PRCVEN")
+	AAdd(aCampos,"U25_GRPCLI")
+	AAdd(aCampos,"U25_ADMFIN")
+
+	If !oFile:Open()
+		MsgStop( "Falha ao abrir o arquivo: " + cArquivo, 'Importador Cadastros' )
+		Return
+	Endif
+
+	cHeader := oFile:GetLine()
+	aHeader := StrToKArr2(cHeader, ";",.T.)
+	ProcRegua(0)
+	IncProc("Processando Cabeçalho...")
+
+	cErro := ""
+	For nIndex := 1 to Len(aHeader)
+		If aScan(aCampos, aHeader[nIndex]) <= 0
+			cErro += "Linha 1 - Campo invalido: " + aHeader[nIndex] + Chr(13)+Chr(10)
+		EndIf
+	Next nIndex
+
+	If !Empty(cErro)
+		Aviso( "Importador Cadastros", cErro, { "Fechar" }, 3, 'Erros encontrados no arquivo '+cArquivo,,,.T.)
+		Return
+	EndIf
+
+	nLinha:=0
+	While oFile:hasLine()
+		lErroLinha := .F.
+		nLinha++
+		cLinha := oFile:GetLine()
+		aLinha := StrToKArr2(cLinha, ";",.T.)
+
+		//carrega valores em branco
+		cProduto    := Space(TamSX3("U25_PRODUT")[1])
+		cFormaPG    := Space(TamSX3("U25_FORPAG")[1])
+		cCondPg     := Space(TamSX3("U25_CONDPG")[1])
+		cCGC        := Space(TamSX3("A1_CGC")[1])
+		dDataIni    := Date()
+		cHoraIni    := Time()
+		dDataFim    := STOD("")
+		cHoraFim    := Space(TamSX3("U25_HRFIM")[1])
+		nPrecoVenda := 0
+		cGrupo	    := Space(TamSX3("U25_GRPCLI")[1])
+		cAdmFin     := Space(TamSX3("U25_ADMFIN")[1])
+		cCliente 	:= Space(TamSX3("U25_CLIENT")[1])
+		cLoja    	:= Space(TamSX3("U25_LOJA")[1])
+
+		if aScan(aHeader,"U25_PRODUT")>0
+			cProduto    := Pad(aLinha[aScan(aHeader,"U25_PRODUT")], TamSX3("U25_PRODUT")[1])
+		endif
+		if aScan(aHeader,"U25_FORPAG")>0
+			cFormaPG    := Pad(aLinha[aScan(aHeader,"U25_FORPAG")], TamSX3("U25_FORPAG")[1])
+		endif
+		if aScan(aHeader,"U25_CONDPG")>0
+			cCondPg     := Pad(aLinha[aScan(aHeader,"U25_CONDPG")], TamSX3("U25_CONDPG")[1])
+		endif
+		if aScan(aHeader,"A1_CGC")>0
+			cCGC        := Pad(aLinha[aScan(aHeader,"A1_CGC")], TamSX3("A1_CGC")[1])
+		endif
+		if aScan(aHeader,"U25_CLIENT")>0
+			cCliente        := Pad(aLinha[aScan(aHeader,"U25_CLIENT")], TamSX3("U25_CLIENT")[1])
+		endif
+		if aScan(aHeader,"U25_LOJA")>0
+			cLoja        := Pad(aLinha[aScan(aHeader,"U25_LOJA")], TamSX3("U25_LOJA")[1])
+		endif
+		if aScan(aHeader,"U25_DTINIC")>0
+			dDataIni    := SToD(aLinha[aScan(aHeader,"U25_DTINIC")])
+		endif
+		if aScan(aHeader,"U25_HRINIC")>0
+			cHoraIni    := Pad(aLinha[aScan(aHeader,"U25_HRINIC")], TamSX3("U25_HRINIC")[1])
+		endif
+		if aScan(aHeader,"U25_DTFIM")>0
+			dDataFim    := SToD(aLinha[aScan(aHeader,"U25_DTFIM")])
+		endif
+		if aScan(aHeader,"U25_HRFIM")>0
+			cHoraFim    := Pad(aLinha[aScan(aHeader,"U25_HRFIM")], TamSX3("U25_HRFIM")[1])
+		endif
+		if aScan(aHeader,"U25_PRCVEN")>0
+			nPrecoVenda := Val(aLinha[aScan(aHeader,"U25_PRCVEN")])
+		endif
+		if aScan(aHeader,"U25_GRPCLI")>0
+			cGrupo	    := Pad(aLinha[aScan(aHeader,"U25_GRPCLI")], TamSX3("U25_GRPCLI")[1])
+		endif
+		if aScan(aHeader,"U25_ADMFIN")>0
+			cAdmFin     := Pad(aLinha[aScan(aHeader,"U25_ADMFIN")], TamSX3("U25_ADMFIN")[1])
+		endif
+		
+		IncProc("Processando Linha "+cValToChar(nLinha)+"...")
+		SX5->(DbSetOrder(1))
+		If !empty(cFormaPG) .AND. !SX5->(DbSeek(xFilial()+"24"+cFormaPG))
+			cErro += "Linha "+cValToChar(nLinha+1)+" - Forma de pagamento não encontrada: " + cFormaPG + Chr(13)+Chr(10)
+			lErroLinha := .T.
+		EndIf
+		SE4->(DbSetOrder(1))
+		If !empty(cFormaPG) .AND. !SE4->(DbSeek(xFilial()+cCondPG))
+			cErro += "Linha "+cValToChar(nLinha+1)+" - Condição de pagamento não encontrada: " + cCondPG + Chr(13)+Chr(10)
+			lErroLinha := .T.
+		EndIf
+		U44->(DbSetOrder(1))
+		If !empty(cFormaPG) .AND. !U44->(DbSeek(xFilial()+cFormaPG+cCondPG))
+			cErro += "Linha "+cValToChar(nLinha+1)+" - Negociação de pagamento não encontrada: " + cFormaPG+cCondPG + Chr(13)+Chr(10)
+			lErroLinha := .T.
+		EndIf
+		SAE->(DbSetOrder(1))
+		If !empty(cAdmFin) .AND. !SAE->(DbSeek(xFilial()+cAdmFin))
+			cErro += "Linha "+cValToChar(nLinha+1)+" - Adm Financeira não encontrada: " + cAdmFin + Chr(13)+Chr(10)
+			lErroLinha := .T.
+		EndIf
+		SB1->(DbSetOrder(1))
+		If empty(cProduto) .OR. !SB1->(DbSeek(xFilial()+cProduto))
+			cErro += "Linha "+cValToChar(nLinha+1)+" - produto não encontrado: " + cProduto + Chr(13)+Chr(10)
+			lErroLinha := .T.
+		EndIf
+		If !Empty(AllTrim(cCGC)) .AND. empty(cCliente)
+			SA1->(DbSetOrder(3))
+			If !SA1->(DbSeek(xFilial()+cCGC))
+				cErro += "Linha "+cValToChar(nLinha+1)+" - CNPJ/CPF não encontrado: " + cCGC + Chr(13)+Chr(10)
+				lErroLinha := .T.
+			else
+				cCliente := SA1->A1_COD
+				cLoja    := SA1->A1_LOJA
+			EndIf
+		EndIf
+		If !Empty(AllTrim(cCliente)) .AND. empty(cCGC)
+			SA1->(DbSetOrder(1))
+			If !SA1->(DbSeek(xFilial()+cCliente+cLoja))
+				cErro += "Linha "+cValToChar(nLinha+1)+" - Cliente não encontrado: " + cCliente+cLoja + Chr(13)+Chr(10)
+				lErroLinha := .T.
+			else
+				cCliente := SA1->A1_COD
+				cLoja    := SA1->A1_LOJA
+			EndIf
+		EndIf
+		if !empty(cGrupo)
+			ACY->(DbSetOrder(1))
+			if !ACY->(DbSeek(xFilial()+cGrupo))
+				cErro += "Linha "+cValToChar(nLinha+1)+" - Grupo Cliente não encontrado: " + cGrupo + Chr(13)+Chr(10)
+				lErroLinha := .T.
+			else
+				cGrupo := ACY->ACY_GRPVEN
+			endif
+		endif
+		If nPrecoVenda <= 0
+			cErro += "Linha "+cValToChar(nLinha+1)+" - Preco de venda inválido: " + cValToChar(nPrecoVenda) + Chr(13)+Chr(10)
+			lErroLinha := .T.
+		EndIf
+		If !lErroLinha .AND. !fValidaInicioFim(cProduto,cFormaPG,cCondPg,cCliente,cLoja,cGrupo,cAdmFin,dDataIni,cHoraIni)
+			cErro += "Linha "+cValToChar(nLinha+1)+" - Já existe preço negociado com data/hora superior ou igual." + Chr(13)+Chr(10)
+			lErroLinha := .T.
+		EndIf
+		
+		nPrecoBase   := U_URetPrBa(cProduto,cFormaPG,cCondPG,cAdmFin,,dDataIni,cHoraIni)
+		if nPrecoBase == 0
+			cErro += "Linha "+cValToChar(nLinha+1)+" - Produto sem preço padrao cadastrado (Tabela de Preços)." + Chr(13)+Chr(10)
+			lErroLinha := .T.
+		endif
+
+		If lErroLinha
+			Loop
+		EndIf
+
+		Begin Transaction
+			//verifico se há algum preço em aberto com mesma chave para encerrar
+			fEncerraPrcAnt(cProduto,cFormaPG,cCondPg,cCliente,cLoja,cGrupo,cAdmFin,dDataIni,cHoraIni)
+
+			RecLock("U25",.T.)
+			U25->U25_FILIAL := xFilial("U25")
+			U25->U25_PRODUT := cProduto
+			U25->U25_FORPAG := cFormaPG
+			U25->U25_CONDPG := cCondPG
+			U25->U25_CLIENT := cCliente
+			U25->U25_LOJA   := cLoja
+			U25->U25_GRPCLI	:= cGrupo
+			U25->U25_ADMFIN	:= cAdmFin
+			U25->U25_DTINIC := dDataIni
+			U25->U25_HRINIC := cHoraIni
+			U25->U25_DTFIM  := dDataFim
+			U25->U25_HRFIM  := cHoraFim
+			U25->U25_DESPBA := nPrecoBase - nPrecoVenda
+			U25->U25_PRCVEN := nPrecoVenda
+			U25->U25_USER 	:= iif(IsBlind(),"JOB",RetCodUsr())
+			U25->U25_DATA 	:= Date()
+			U25->U25_HORA 	:= Time()
+			U25->U25_TIPOAJ := "X"
+			U25->U25_VLRMAX := CriaVar("U25_VLRMAX")
+			U25->U25_PERMAX := CriaVar("U25_PERMAX")
+			U25->U25_BLQL	:= CriaVar("U25_BLQL")
+			U25->U25_REPLIC := U_TR023IDR()
+			U25->(MsUnLock())
+		End Transaction
+	EndDo
+	oFile:Close()
+	If !Empty(cErro)
+		Aviso( "Importador Cadastros", cErro, { "Fechar" }, 3, 'Erros encontrados no arquivo '+cArquivo,,,.T.)
+	EndIf
+Return
+
+
+/*/{Protheus.doc} fValidaInicioFim
+  Valida se nao ha datas conflitantes
+  @type Function
+  @author Fabricio Ferreira
+  @since 04/09/2023
+  @version 1.0
+  @param cProduto, character, codigo do produto
+  @param cFormaPG, character, forma de pagamento
+  @param cCondPg, character, condicao de pagamento
+  @param cCliente, character, codigo do cliente
+  @param cLoja, character, loja do cliente
+  @param dDataIni, date, data de inicio
+  @param cHoraIni, character, hora de inicio
+  @param dDataFim, date, data final
+  @param cHoraFim, character, hora final
+  @return logical, retorna verdadeiro se nao ha conflito
+/*/
+Static Function fValidaInicioFim(;
+		cProduto as character,;
+		cFormaPG as character,;
+		cCondPg as character,;
+		cCliente as character,;
+		cLoja as character,;
+		cGrupo as character,;
+		cAdmFin as character,;
+		dDataIni as date,;
+		cHoraIni as character;
+		) as logical
+
+	Local cQry := ""
+
+	cQry += " SELECT COUNT(*) QTD "
+	cQry += " FROM "+RetSQLName("U25")
+	cQry += " WHERE U25_FILIAL = "+ValToSQL(xFilial("U25"))
+	cQry += " AND U25_PRODUT = "+ValToSQL(cProduto)
+	cQry += " AND U25_CLIENT = "+ValToSQL(cCliente)
+	cQry += " AND U25_LOJA = "+ValToSQL(cLoja)
+	cQry += " AND U25_GRPCLI = "+ValToSQL(cGrupo)
+	cQry += " AND U25_ADMFIN = "+ValToSQL(cAdmFin)
+	cQry += " AND U25_FORPAG = "+ValToSQL(cFormaPG)
+	cQry += " AND U25_CONDPG = "+ValToSQL(cCondPg)
+	cQry += " AND U25_DTINIC||U25_HRINIC >= "+ValToSQL(DToS(dDataIni)+cHoraIni)
+	//cQry += " AND (U25_DTFIM||U25_HRFIM >= "+ValToSQL(DToS(dDataIni)+cHoraIni)+" OR U25_DTFIM||U25_HRFIM = ' ')"
+	cQry += " AND D_E_L_E_T_ = ' '  "
+
+	cQry := ChangeQuery(cQry)
+
+Return(MpSysExecScalar(cQry, "QTD") <= 0)
+
+
+Static Function fEncerraPrcAnt(;
+		cProduto as character,;
+		cFormaPG as character,;
+		cCondPg as character,;
+		cCliente as character,;
+		cLoja as character,;
+		cGrupo as character,;
+		cAdmFin as character,;
+		dDataIni as date,;
+		cHoraIni as character;
+		) as logical
+
+	Local cQry := ""
+	Local cAliasQry := "IMPU25"
+	Local cOBS := "(Rotina: Importação. "
+	Local aArea := U25->(GetArea())
+
+	cOBS += "Data/Hora: "+DTOC(Date())+" "+Time()+". Usuário: "+iif(IsBlind(),"JOB",RetCodUsr())+")"
+
+	cQry += " SELECT R_E_C_N_O_ RECU25 "
+	cQry += " FROM "+RetSQLName("U25")
+	cQry += " WHERE U25_FILIAL = "+ValToSQL(xFilial("U25"))
+	cQry += " AND U25_PRODUT = "+ValToSQL(cProduto)
+	cQry += " AND U25_CLIENT = "+ValToSQL(cCliente)
+	cQry += " AND U25_LOJA = "+ValToSQL(cLoja)
+	cQry += " AND U25_GRPCLI = "+ValToSQL(cGrupo)
+	cQry += " AND U25_ADMFIN = "+ValToSQL(cAdmFin)
+	cQry += " AND U25_FORPAG = "+ValToSQL(cFormaPG)
+	cQry += " AND U25_CONDPG = "+ValToSQL(cCondPg)
+	cQry += " AND U25_DTINIC||U25_HRINIC <= "+ValToSQL(DToS(dDataIni)+cHoraIni)
+	cQry += " AND (U25_DTFIM||U25_HRFIM >= "+ValToSQL(DToS(dDataIni)+cHoraIni)+" OR U25_DTFIM||U25_HRFIM = ' ')"
+	cQry += " AND D_E_L_E_T_ = ' '  "
+
+	cQry := ChangeQuery(cQry)
+
+	If Select(cAliasQry) > 0
+		(cAliasQry)->(DbCloseArea())
+	EndIf
+
+	MPSysOpenQuery(cQry,cAliasQry)
+
+	While (cAliasQry)->(!EOF())
+
+		U25->(DbGoTo((cAliasQry)->RECU25))
+		RecLock("U25", .F.)
+		U25->U25_DTFIM := dDataIni
+		U25->U25_HRFIM := cHoraIni
+		U25->U25_OBS := U25->U25_OBS + CHR(13)+CHR(10) + "Encerramento automatico pela inclusao de novo preço " + cOBS
+		U25->(MsUnlock())
+		U_UREPLICA("U25", 1, U25->U25_FILIAL+U25->U25_REPLIC, "A")
+
+		(cAliasQry)->(dbSkip())
+	EndDo
+
+	If Select(cAliasQry) > 0
+		(cAliasQry)->(DbCloseArea())
+	EndIf
+
+	RestArea(aArea)
+
+Return

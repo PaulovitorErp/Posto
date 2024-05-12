@@ -1,0 +1,35 @@
+/*/{Protheus.doc} User Function TratamentoEspecialVeiculos
+  Busca cliente pelo cnpf e preenche campos cliente e loja na tabela DA3
+  @type  Function
+  @author Fabricio Ferreira
+  @since 04/09/2023
+  @version 1.0
+  @param aLinha, array, array com dados do registro
+  @param aHeader, array, array com header do arquivo
+  @param nLinha, numeric, numero da linha tratada
+	@return character, retorna erro caso haja
+  /*/
+namespace Duofy.importadorCadastros
+User Function tratamentoEspecialVeiculos(aLinha as array, aHeader as array, nLinha as numeric) as character
+	Local nPosCGC := aScan(aHeader, "A1_CGC")
+	Local nPosPlaca := aScan(aHeader, "DA3_PLACA")
+	Local cErro := ""
+	If nPosCGC > 0
+		If !Empty(AllTrim(aLinha[nPosCGC]))
+			SA1->(DbSetOrder(3))
+			If SA1->(DbSeek(xFilial()+aLinha[nPosCGC]))
+				DA3->DA3_XCODCL := SA1->A1_COD
+				DA3->DA3_XLOJCL := SA1->A1_LOJA
+			Else
+				cErro += "Linha "+cValToChar(nLinha+1)+" - CNPJ/CPF não encontrado: " + aLinha[nPosCGC] + Chr(13)+Chr(10)
+			EndIf
+		EndIf
+	EndIf
+	If nPosPlaca > 0 .AND. !Empty(AllTrim(aLinha[nPosPlaca]))
+		If Empty(cErro)
+			DA3->DA3_COD := aLinha[nPosPlaca]
+		EndIf
+	Else
+		cErro += "Linha "+cValToChar(nLinha+1)+" - Campo com a placa do veículo (DA3_PLACA) não encontrado ou em branco" + Chr(13)+Chr(10)
+	EndIf
+Return(cErro)

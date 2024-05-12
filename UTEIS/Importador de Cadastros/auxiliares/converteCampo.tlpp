@@ -1,0 +1,22 @@
+/*/{Protheus.doc} User Function converteCampo
+  Converte o conteudo de um campo para o tipo de dado do campo
+  @type  Function
+  @author Fabricio Ferreira
+  @since 01/09/2023
+  @version 1.0
+  @param cCampo, character, nome do campo
+  @param cConteudo, character, conteudo do campo
+	@return variant, retorna conteudo convertido
+  /*/
+namespace Duofy.importadorCadastros
+User Function converteCampo(cCampo, cConteudo) as variant
+	Local cTipo := GetSx3Cache(cCampo,"X3_TIPO")
+	cConteudo := AllTrim(cConteudo)
+	If cTipo == "N"
+		Return(Val(cConteudo))
+	ElseIf cTipo == "D"
+		Return(Ctod(cConteudo))
+	ElseIf cTipo == "L"
+		Return(IIf(cConteudo == "T" .OR. cConteudo == ".T." .OR. Upper(cConteudo) == "TRUE",.T.,.F.))
+	EndIf
+Return(cConteudo)

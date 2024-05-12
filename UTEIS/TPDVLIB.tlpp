@@ -1,0 +1,3551 @@
+#include "fileio.ch"
+#include "topconn.ch"
+#include "TOTVS.CH"
+#include 'poscss.ch'
+
+// TPDVLIB
+// Biblioteca de funções genericas para o TOTVS PDV - POSTO INTELIGENTE
+// @author TBC-GO
+
+//---------------------------------------------------------------
+// OBS.: SEMPRE ADICIONAR O PROTHEUS.DOC NAS FUNCOES
+//---------------------------------------------------------------
+
+/*/{Protheus.doc} UCriaLog
+Cria arquivo de log.
+
+@author Totvs GO
+@since 19/01/2015
+@version 1.0
+
+@return Nil
+
+@param cPasta, characters, descricao
+@param cNomeArq, characters, descricao
+@param cTexto, characters, descricao
+
+@type function
+/*/
+User Function UCriaLog(cPasta,cNomeArq,cTexto,lHelp)
+	Local cFile := cPasta+cNomeArq//"\temp\arquivo.txt"
+	Local nHdlFile
+	Local lExistDir	:= .T.
+	Default lHelp := .T.
+
+	If !ExistDir(cPasta)	// Verifica se existe a pasta.
+
+		nRet := MakeDir( cPasta )	// Cria a pasta.
+
+		If nRet != 0	// Verifica se a pasta foi criada.
+
+			lExistDir	:= .F.
+
+			If lHelp
+				If IsBlind()
+					//Executa Rotina pelo Schedule (prepare environment)
+					//conout( "Não foi possível criar o diretório " + cPasta + ". FERROR: " + cValToChar( FError() ) )
+				Else
+					//Executa Rotina pelo Menu, sem prepare environment.
+					Help(, , "FERROR", , "Não foi possível criar o diretório " + cPasta + ".", 1, 0, , , , , , {"FERROR: " + cValToChar( FError() )})
+				EndIf
+			EndIf
+
+		EndIf
+
+	EndIf
+
+	If lExistDir
+
+		If !File(cFile, 1, .T.)	// Verifica se existe o arquivo
+			nHdlFile := fCreate(cFile,FC_NORMAL)	// Cria o arquivo
+			If nHdlFile == -1
+				If lHelp
+					If IsBlind()
+						//Executa Rotina pelo Schedule (prepare environment)
+						//conout( "Falha ao criar arquivo - FERROR " + Str( FError() ) )
+					Else
+						//Executa Rotina pelo Menu, sem prepare environment.
+						Help(, , "FERROR", , "Falha ao criar arquivo.", 1, 0, , , , , , {"FERROR " + Str( FError() )})
+					EndIf
+				EndIf
+				Return
+			EndIf
+		Else
+			nHdlFile := fOpen(cFile , FO_READWRITE + FO_SHARED)	// Abre o arquivo
+			If nHdlFile == -1
+				If lHelp
+					If IsBlind()
+						//Executa Rotina pelo Schedule (prepare environment)
+						//conout( "Erro de abertura : FERROR " + Str( FError(),4 ) )
+					Else
+						//Executa Rotina pelo Menu, sem prepare environment.
+						Help(, , "FERROR", , "Erro de abertura arquivo.", 1, 0, , , , , , {"FERROR " + Str( FError(),4 )})
+					EndIf
+				EndIf
+				Return
+			EndIf
+		EndIf
+
+		// Posiciona no fim do arquivo
+		FSeek(nHdlFile, 0, FS_END)
+
+		// Escreve o texto mais a quebra de linha CRLF
+		fWrite(nHdlFile, cTexto + CRLF)
+
+		fClose(nHdlFile)
+
+	EndIf
+
+Return
+
+
+/*/{Protheus.doc} URetPrec
+Função que retorna o preço do produto.
+
+Recebe os seguintes parâmetros:
+1 - Código do produto
+2 - Variavel com descrição do erro (por referência)
+
+Retorno:
+1- Preço do produto
+
+@author pablo
+@since 27/09/2018
+@version 1.0
+@return Nil
+@param cCodProd, characters, descricao
+@param cErro, characters, descricao
+@param lShowErr, logical, descricao
+@type function
+/*/
+User Function URetPrec(cCodProd,cErro,lShowErr,nNivel)
+
+	Local lTipoPreco	:= GetMv("MV_LJCNVDA")
+	Local cTabPrc		:= GetMv("MV_TABPAD")
+	Local cTabNv0 		:= SuperGETMV('MV_XTABNV0',,"") // tabela de preços utilizada para preço nível 0 (zero), Dinheiro.
+	Local cTabNv1 		:= SuperGETMV('MV_XTABNV1',,"") // tabela de preços utilizada para preço nível 1 (um), Débito.
+	Local cTabNv2 		:= SuperGETMV('MV_XTABNV2',,"") // tabela de preços utilizada para preço nível 2 (dois), Credito.
+	Local nPreco		:= 0
+	Local dMaiorData	:= CTOD("  /  /    ")
+	Local lNivCBC		:= SuperGETMV('MV_XNIVCBC',,.F.) .and. U68->( FieldPos("U68_TIPPRC") ) > 0
+
+	Default cErro		:= ""
+	Default lShowErr	:= .T.
+	Default nNivel		:= ""
+
+//-- pega tabela conforme o nível informado
+	Do Case
+	Case lNivCBC .and. nNivel = '0' .and. !Empty(cTabNv0)
+		cTabPrc := cTabNv0
+	Case lNivCBC .and. nNivel = '1' .and. !Empty(cTabNv1)
+		cTabPrc := cTabNv1
+	Case lNivCBC .and. nNivel = '2' .and. !Empty(cTabNv2)
+		cTabPrc := cTabNv2
+	EndCase
+
+	If !Empty(cCodProd)
+
+		SB1->(DbSetOrder(1))
+		If SB1->(DbSeek(xFilial("SB1") + cCodProd))
+
+			cGetDesc := SB1->B1_DESC
+
+			If lTipoPreco // o valor do produto está na tabela de preços
+
+				DA0->(DbSetOrder(1)) // DA0_FILIAL+DA0_CODTAB
+				If DA0->(DbSeek(xFilial("DA0") + cTabPrc))
+
+					DA1->(DbSetOrder(1)) // DA1_FILIAL + DA1_CODTAB + DA1_CODPRO + DA1_INDLOT + DA1_ITEM
+					If DA1->(DbSeek(xFilial("DA1") + DA0->DA0_CODTAB + cCodProd))
+
+						While DA1->(!Eof()) .AND. DA1->DA1_FILIAL == xFilial("DA1") .AND. DA1->DA1_CODTAB == DA0->DA0_CODTAB .AND. AllTrim(DA1->DA1_CODPRO) == AllTrim(cCodProd)
+
+							// pego a maior data de vigencia
+							If DA1->DA1_DATVIG >= dMaiorData .AND. dDataBase >= DA1->DA1_DATVIG
+								dMaiorData 	:= DA1->DA1_DATVIG
+								nPreco 		:= DA1->DA1_PRCVEN
+							EndIf
+
+							DA1->(DbSkip())
+
+						EndDo
+
+					Else
+						cErro := "Este produto não existe na tabela de preços " + cTabPrc + "."
+					EndIf
+
+				Else
+					cErro := "A tabela de preços informada no parâmetro MV_TABPAD é inválida!"
+				EndIf
+
+			Else //  o valor do produto está na SB0
+
+				SB0->(DbSetOrder(1))
+				If SB0->(DbSeek(xFilial("SB0") + cCodProd))
+					nPreco := SB0->B0_PRV1
+				Else
+					cErro := "Este produto não está cadastrado na rotina de atualização de preços do Siga Loja!"
+				EndIf
+
+			EndIf
+
+		Else
+			cErro := "Produto inválido!"
+		EndIf
+
+		If lShowErr .AND. !Empty(cErro)
+			Help(, , "Atenção", , cErro, 1, 0, , , , , , {})
+		EndIf
+
+	EndIf
+
+Return(nPreco)
+
+/*/{Protheus.doc} URetPrBa
+Retorna o preço base (U0C_PRCBAS) - tabela U0B/U0C - Tabela de Preço Base.
+Caso não encontre o preço base, retorna o preço de tabela: URetPrec
+
+@author pablo
+@since 26/04/2019
+@version 1.0
+@return ${return}, ${return_description}
+
+@type function
+/*/
+User Function URetPrBa(cCodProd, cForPg, cCondPg, cAdmin, nPrcPad, dDtIni, cHrIni)
+
+	Local nPreco	:= 0
+	Local cMV_XFLTPDV := SuperGetMv("MV_XFLTPDV",,"") //filiais que ja são totvspdv
+	Local cDtIni	:= ""
+
+	Default cForPg	:= ""
+	Default cCondPg	:= ""
+	Default cAdmin	:= ""
+	Default nPrcPad := 0 //preço de bomba
+	Default dDtIni	:= Date()
+	Default cHrIni	:= Time()
+
+	If (DtoS(dDtIni)+PadR(cHrIni,TamSx3("U0C_HRINIC")[01])) < (DtoS(Date())+PadR(Time(),TamSx3("U0C_HRINIC")[01]))
+		dDtIni	:= Date()
+		cHrIni	:= Time()
+	EndIf
+
+	cDtIni := DtoS(dDtIni)
+	cHrIni := PadR(cHrIni,TamSx3("U0C_HRINIC")[01])
+
+//DANILO: alteração de CCP e CDP para CC e CD
+	If cFilAnt $ cMV_XFLTPDV
+		If Alltrim(cForPg) == "CCP"
+			cForPg :=  "CC "
+		ElseIf Alltrim(cForPg) == "CDP"
+			cForPg :=  "CD "
+		ElseIf Alltrim(cForPg) == "CR"
+			cForPg :=  "NB "
+		EndIf
+	EndIf
+
+	If !Empty(cCodProd)
+
+		SB1->(DbSetOrder(1))
+		If SB1->(DbSeek(xFilial("SB1") + cCodProd))
+
+			If !Empty(cForPg)
+
+				U0C->(DbSetOrder(1)) //U0C_FILIAL+U0C_PRODUT+U0C_FORPAG+U0C_CONDPG+U0C_ADMFIN
+				If !Empty(cAdmin) .and. U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg+cCondPg+cAdmin))
+					If U0C->(FieldPos("U0C_DTINIC")) > 0 .and. DtoS(U0C->U0C_DTINIC)+U0C->U0C_HRINIC > ( cDtIni + cHrIni ) //preço ainda não vigente, pega preço antigo
+						nPreco := U0C->U0C_PRCOLD
+					Else
+						nPreco := U0C->U0C_PRCBAS
+					EndIf
+				EndIf
+
+				If nPreco<=0 .and. !Empty(cCondPg) .and. U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg+cCondPg+Space(TamSX3("U0C_ADMFIN")[1])))
+					If U0C->(FieldPos("U0C_DTINIC")) > 0 .and. DtoS(U0C->U0C_DTINIC)+U0C->U0C_HRINIC > ( cDtIni + cHrIni ) //preço ainda não vigente, pega preço antigo
+						nPreco := U0C->U0C_PRCOLD
+					Else
+						nPreco := U0C->U0C_PRCBAS
+					EndIf
+				EndIf
+
+				If nPreco<=0 .and. !Empty(cForPg) .and. U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg+Space(TamSX3("U0C_CONDPG")[1])+Space(TamSX3("U0C_ADMFIN")[1])))
+					If U0C->(FieldPos("U0C_DTINIC")) > 0 .and. DtoS(U0C->U0C_DTINIC)+U0C->U0C_HRINIC > ( cDtIni + cHrIni ) //preço ainda não vigente, pega preço antigo
+						nPreco := U0C->U0C_PRCOLD
+					Else
+						nPreco := U0C->U0C_PRCBAS
+					EndIf
+				EndIf
+
+			EndIf
+
+			If (nPreco <= 0) .and. (nPrcPad > 0 ) //considera o preço do bico, ja que não tem preço base
+				nPreco := nPrcPad
+			ElseIf  (nPreco <= 0)
+				nPreco := u_URetPrec(cCodProd,,.F.)
+			EndIf
+
+		EndIf
+
+	EndIf
+
+Return(nPreco)
+
+
+/*/{Protheus.doc} URetU0C
+Retorna um campo (cCAmpo) - tabela U0C - Tabela de Preço Base.
+
+@author pablo
+@since 26/04/2019
+@version 1.0
+@return ${return}, ${return_description}
+
+@type function
+/*/
+User Function URetU0C(cCodProd, cForPg, cCondPg, cAdmin, cCampo)
+
+	Local xRet
+	Local cMV_XFLTPDV := SuperGetMv("MV_XFLTPDV",,"") //filiais que ja são totvspdv
+	Local cTipo := ""
+
+	Default cForPg	:= ""
+	Default cCondPg	:= ""
+	Default cAdmin	:= ""
+	Default cCampo  := "U0C_FILIAL"
+
+//DANILO: alteração de CCP e CDP para CC e CD
+	If cFilAnt $ cMV_XFLTPDV
+		If Alltrim(cForPg) == "CCP"
+			cForPg :=  "CC "
+		ElseIf Alltrim(cForPg) == "CDP"
+			cForPg :=  "CD "
+		ElseIf Alltrim(cForPg) == "CR"
+			cForPg :=  "NB "
+		EndIf
+	EndIf
+
+	If !Empty(cCodProd)
+
+		SB1->(DbSetOrder(1))
+		If SB1->(DbSeek(xFilial("SB1") + cCodProd))
+
+			If !Empty(cForPg)
+
+				U0C->(DbSetOrder(1)) //U0C_FILIAL+U0C_PRODUT+U0C_FORPAG+U0C_CONDPG+U0C_ADMFIN
+				If U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg+cCondPg+cAdmin))
+					xRet := &("U0C->"+cCampo)
+				EndIf
+
+				If xRet == Nil .AND. U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg+cCondPg))
+					xRet := &("U0C->"+cCampo)
+				EndIf
+
+				If xRet == Nil .AND. U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg))
+					xRet := &("U0C->"+cCampo)
+				EndIf
+
+			EndIf
+
+		EndIf
+
+	EndIf
+
+	If xRet == Nil //
+
+		cTipo := GetSx3Cache(cCampo,"X3_TIPO")
+
+		If cTipo == "N"
+			xRet	:= 0
+		ElseIf cTipo == "D"
+			xRet	:= CtoD("")
+		ElseIf cTipo == "C"
+			xRet := ""
+		Else //others types
+			xRet := Nil
+		EndIf
+
+	EndIf
+
+Return(xRet)
+
+/*/{Protheus.doc} URetU0G
+Retorna uma array de campos (aCampo) - tabela U0G - Hist. Itens Tabela de P. Base.
+
+@author pablo
+@since 21/02/2020
+@version 1.0
+@return ${return}, ${return_description}
+
+@type function
+/*/
+User Function URetU0G(cCodProd, cForPg, cCondPg, cAdmin, aDtHrPr, lPAtivo)
+
+	Local aRet := {} //U0G_PRCBAS, U0G_DTINIC, U0G_HRINIC, U0G_USHIST, U0G_DTHIST, U0G_HRHIST
+	Local cMV_XFLTPDV := SuperGetMv("MV_XFLTPDV",,"") //filiais que ja são totvspdv
+	Local dDtHist :=  SuperGetMV("MV_XDTRHST",,StoD("20200221"))
+
+	Default cForPg	:= ""
+	Default cCondPg	:= ""
+	Default cAdmin	:= ""
+	Default aDtHrPr := {CtoD(""),"",CtoD(""),""} //U25_DTINIC, U25_HRINIC, U25_DTFIM, U25_HRFIM
+	Default lPAtivo	:= .F.
+
+//DANILO: alteração de CCP e CDP para CC e CD
+	If cFilAnt $ cMV_XFLTPDV
+		If Alltrim(cForPg) == "CCP"
+			cForPg :=  "CC "
+		ElseIf Alltrim(cForPg) == "CDP"
+			cForPg :=  "CD "
+		ElseIf Alltrim(cForPg) == "CR"
+			cForPg :=  "NB "
+		EndIf
+	EndIf
+
+	If !Empty(cCodProd)
+
+		SB1->(DbSetOrder(1))
+		If SB1->(DbSeek(xFilial("SB1") + cCodProd))
+
+			If !Empty(cForPg)
+
+				U0G->(DbSetOrder(1)) //U0G_FILIAL+U0G_PRODUT+U0G_FORPAG+U0G_CONDPG+U0G_ADMFIN+DTOS(U0G_DTINIC)+U0G_HRINIC
+				If U0G->(DbSeek(xFilial("U0G")+cCodProd+cForPg+cCondPg+cAdmin))
+					While U0G->(!Eof()) .and. U0G->(U0G_FILIAL+U0G_PRODUT+U0G_FORPAG+U0G_CONDPG+U0G_ADMFIN) = (xFilial("U0G")+cCodProd+cForPg+cCondPg+cAdmin)
+						//If DtoS(aDtHrPr[1])+aDtHrPr[2] >= DtoS(U0G->U0G_DTINIC)+U0G->U0G_HRINIC .and. (Empty(DtoS(aDtHrPr[3])) .or. DtoS(aDtHrPr[3])+aDtHrPr[4] <= DtoS(U0G->U0G_DTHIST)+U0G->U0G_HRHIST)
+						If !Empty(DtoS(aDtHrPr[3])) .and. (DtoS(aDtHrPr[3])+aDtHrPr[4] >= DtoS(U0G->U0G_DTINIC)+U0G->U0G_HRINIC) .and. (DtoS(aDtHrPr[3])+aDtHrPr[4] <= DtoS(U0G->U0G_DTHIST)+U0G->U0G_HRHIST)
+							aRet := {U0G->U0G_PRCBAS, U0G->U0G_DTINIC, U0G->U0G_HRINIC, U0G->U0G_USHIST, U0G->U0G_DTHIST, U0G->U0G_HRHIST}
+							Exit
+						EndIf
+						U0G->(DbSkip())
+					EndDo
+				EndIf
+
+				If Len(aRet)=0 .AND. U0G->(DbSeek(xFilial("U0G")+cCodProd+cForPg+cCondPg+Space(TamSX3("U0G_ADMFIN")[1])))
+					While U0G->(!Eof()) .and. U0G->(U0G_FILIAL+U0G_PRODUT+U0G_FORPAG+U0G_CONDPG+U0G_ADMFIN) = (xFilial("U0G")+cCodProd+cForPg+cCondPg+Space(TamSX3("U0G_ADMFIN")[1]))
+						If !Empty(DtoS(aDtHrPr[3])) .and. (DtoS(aDtHrPr[3])+aDtHrPr[4] >= DtoS(U0G->U0G_DTINIC)+U0G->U0G_HRINIC) .and. (DtoS(aDtHrPr[3])+aDtHrPr[4] <= DtoS(U0G->U0G_DTHIST)+U0G->U0G_HRHIST)
+							aRet := {U0G->U0G_PRCBAS, U0G->U0G_DTINIC, U0G->U0G_HRINIC, U0G->U0G_USHIST, U0G->U0G_DTHIST, U0G->U0G_HRHIST}
+							Exit
+						EndIf
+						U0G->(DbSkip())
+					EndDo
+				EndIf
+
+				If Len(aRet)=0 .AND. U0G->(DbSeek(xFilial("U0G")+cCodProd+cForPg+Space(TamSX3("U0G_CONDPG")[1])+Space(TamSX3("U0G_ADMFIN")[1])))
+					While U0G->(!Eof()) .and. U0G->(U0G_FILIAL+U0G_PRODUT+U0G_FORPAG+U0G_CONDPG+U0G_ADMFIN) = (xFilial("U0G")+cCodProd+cForPg+Space(TamSX3("U0G_CONDPG")[1])+Space(TamSX3("U0G_ADMFIN")[1]))
+						If !Empty(DtoS(aDtHrPr[3])) .and. (DtoS(aDtHrPr[3])+aDtHrPr[4] >= DtoS(U0G->U0G_DTINIC)+U0G->U0G_HRINIC) .and. (DtoS(aDtHrPr[3])+aDtHrPr[4] <= DtoS(U0G->U0G_DTHIST)+U0G->U0G_HRHIST)
+							aRet := {U0G->U0G_PRCBAS, U0G->U0G_DTINIC, U0G->U0G_HRINIC, U0G->U0G_USHIST, U0G->U0G_DTHIST, U0G->U0G_HRHIST}
+							Exit
+						EndIf
+						U0G->(DbSkip())
+					EndDo
+				EndIf
+
+			EndIf
+
+		EndIf
+
+	EndIf
+
+	If Len(aRet)=0 .and. (lPAtivo .or. (!Empty(DtoS(aDtHrPr[3])) .and. aDtHrPr[3] >= dDtHist))
+
+		SB1->(DbSetOrder(1))
+		If SB1->(DbSeek(xFilial("SB1") + cCodProd))
+
+			If !Empty(cForPg)
+
+				U0C->(DbSetOrder(1)) //U0C_FILIAL+U0C_PRODUT+U0C_FORPAG+U0C_CONDPG+U0C_ADMFIN
+				If U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg+cCondPg+cAdmin))
+					aRet := {U0C->U0C_PRCOLD, U0C->U0C_DTINIC, U0C->U0C_HRINIC, "", CtoD(""), ""}
+				EndIf
+
+				If Len(aRet)=0 .AND. U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg+cCondPg))
+					aRet := {U0C->U0C_PRCOLD, U0C->U0C_DTINIC, U0C->U0C_HRINIC, "", CtoD(""), ""}
+				EndIf
+
+				If Len(aRet)=0 .AND. U0C->(DbSeek(xFilial("U0C")+cCodProd+cForPg))
+					aRet := {U0C->U0C_PRCOLD, U0C->U0C_DTINIC, U0C->U0C_HRINIC, "", CtoD(""), ""}
+				EndIf
+
+			EndIf
+
+		EndIf
+
+	EndIf
+
+	If Len(aRet)=0
+		aRet := {0, CtoD(""), "", "", CtoD(""), ""}
+	EndIf
+
+Return(aRet)
+
+/*/{Protheus.doc} uPutSx1
+Cria uma pergunta usando rotina padrao.
+
+@author pablo
+@since 27/09/2018
+@version 1.0
+@return Nil
+@param cGrupo, characters, descricao
+@param cOrdem, characters, descricao
+@param cPergunt, characters, descricao
+@param cPerSpa, characters, descricao
+@param cPerEng, characters, descricao
+@param cVar, characters, descricao
+@param cTipo, characters, descricao
+@param nTamanho, numeric, descricao
+@param nDecimal, numeric, descricao
+@param nPresel, numeric, descricao
+@param cGSC, characters, descricao
+@param cValid, characters, descricao
+@param cF3, characters, descricao
+@param cGrpSxg, characters, descricao
+@param cPyme, characters, descricao
+@param cVar01, characters, descricao
+@param cDef01, characters, descricao
+@param cDefSpa1, characters, descricao
+@param cDefEng1, characters, descricao
+@param cCnt01, characters, descricao
+@param cDef02, characters, descricao
+@param cDefSpa2, characters, descricao
+@param cDefEng2, characters, descricao
+@param cDef03, characters, descricao
+@param cDefSpa3, characters, descricao
+@param cDefEng3, characters, descricao
+@param cDef04, characters, descricao
+@param cDefSpa4, characters, descricao
+@param cDefEng4, characters, descricao
+@param cDef05, characters, descricao
+@param cDefSpa5, characters, descricao
+@param cDefEng5, characters, descricao
+@param aHelpPor, array, descricao
+@param aHelpEng, array, descricao
+@param aHelpSpa, array, descricao
+@param cHelp, characters, descricao
+@type function
+/*/
+User Function uPutSx1(cGrupo,cOrdem,cPergunt,cPerSpa,cPerEng,cVar,; //--TODO - Descontinuação da Função uPutSx1 -> usar a função ParamBox
+	cTipo ,nTamanho,nDecimal,nPresel,cGSC,cValid,;
+		cF3, cGrpSxg,cPyme,;
+		cVar01,cDef01,cDefSpa1,cDefEng1,cCnt01,;
+		cDef02,cDefSpa2,cDefEng2,;
+		cDef03,cDefSpa3,cDefEng3,;
+		cDef04,cDefSpa4,cDefEng4,;
+		cDef05,cDefSpa5,cDefEng5,;
+		aHelpPor,aHelpEng,aHelpSpa,cHelp)
+
+	U_UAjusSx1(cGrupo,cOrdem,cPergunt,cPerSpa,cPerEng,cVar,;
+		cTipo ,nTamanho,nDecimal,nPresel,cGSC,cValid,;
+		cF3, cGrpSxg,cPyme,;
+		cVar01,cDef01,cDefSpa1,cDefEng1,cCnt01,;
+		cDef02,cDefSpa2,cDefEng2,;
+		cDef03,cDefSpa3,cDefEng3,;
+		cDef04,cDefSpa4,cDefEng4,;
+		cDef05,cDefSpa5,cDefEng5,;
+		aHelpPor,aHelpEng,aHelpSpa,cHelp)
+
+Return
+//---------------------------------------------------------------
+// TO DO - Descontinuação da Função PUTSX1
+// Não é mais permitida a alteração de campos da SX1 diretamente. 
+// Os campos devem ser alterados manualmente pelo Configurador.
+//---------------------------------------------------------------
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} UAjusSx1
+Cria uma pergunta usando rotina padrao
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function UAjusSx1(cGrupo,cOrdem,cPergunt,cPerSpa,cPerEng,cVar,;
+		cTipo ,nTamanho,nDecimal,nPresel,cGSC,cValid,;
+		cF3, cGrpSxg,cPyme,;
+		cVar01,cDef01,cDefSpa1,cDefEng1,cCnt01,;
+		cDef02,cDefSpa2,cDefEng2,;
+		cDef03,cDefSpa3,cDefEng3,;
+		cDef04,cDefSpa4,cDefEng4,;
+		cDef05,cDefSpa5,cDefEng5,;
+		aHelpPor,aHelpEng,aHelpSpa,cHelp,cPicture)
+
+	Local aArea := GetArea()
+	Local cKey
+	Local lPort := .f.
+	Local lSpa  := .f.
+	Local lIngl := .f.
+	Local cAliasSX1 := GetNextAlias() // apelido para o arquivo de trabalho
+	Local lOpen   	:= .F. // valida se foi aberto a tabela
+	Local nOrder := 1
+	Local lDicDB := .F.
+	Local lFindPar := .F.
+	Local nRecSX1 := 0
+	Local cQry := ""
+
+	Default cPicture := ""
+
+// abre o dicionário SX1
+	If (FindFunction("MPDicInDB") .AND. MPDicInDB() )
+		lDicDB := .T.
+		DBUseArea(.F., 'TOPCONN', "SX1"+SubStr(RetSqlName("SX3"),4), cAliasSX1, .T., .F.)
+	Else
+		OpenSXs(NIL, NIL, NIL, NIL, cEmpAnt, cAliasSX1, "SX1", NIL, .F.) //TODO - a função OpenSXs não funciona mais para SX1
+	EndIf
+	lOpen := Select(cAliasSX1) > 0
+
+// caso aberto, posiciona no topo
+	If !(lOpen)
+		Return .F.
+	EndIf
+
+	DbSelectArea(cAliasSX1)
+
+	// Ajusta o tamanho do grupo. Ajuste emergencial para validação dos fontes.
+	// RFC - 15/03/2007
+	cGrupo := PadR( cGrupo , Len( (cAliasSX1)->&("X1_GRUPO") ) , " " )
+
+	if lDicDB
+		If Select("QAUX") > 0
+			QAUX->(dbCloseArea())
+		EndIf
+		cQry := "SELECT R_E_C_N_O_ RECSX1 FROM " + "SX1"+SubStr(RetSqlName("SX3"),4) + " WHERE D_E_L_E_T_ = ' ' AND X1_GRUPO = '" + cGrupo + "' AND X1_ORDEM = '" + cOrdem + "'"
+		cQry := ChangeQuery(cQry)
+		TcQuery cQry New ALIAS "QAUX"
+		If QAUX->(!EOF())
+			nRecSX1 := QAUX->RECSX1
+			lFindPar := .T.
+		endif
+		QAUX->(dbCloseArea())
+	endif
+
+	cKey  := "P." + AllTrim( cGrupo ) + AllTrim( cOrdem ) + "."
+
+	cPyme    := Iif( cPyme 	 == Nil, " ", cPyme	  )
+	cF3      := Iif( cF3 	 == NIl, " ", cF3	  )
+	cGrpSxg  := Iif( cGrpSxg == Nil, " ", cGrpSxg )
+	cCnt01   := Iif( cCnt01	 == Nil, "" , cCnt01  )
+	cHelp	 := Iif( cHelp	 == Nil, "" , cHelp	  )
+
+	if lDicDB
+		(cAliasSX1)->( DBGoTo(nRecSX1) )
+	else
+		(cAliasSX1)->( DbSetOrder( nOrder ) ) //X1_GRUPO+X1_ORDEM
+		(cAliasSX1)->( DbGoTop() )
+	endif
+
+	If (!lDicDB .AND. !(cAliasSX1)->(DbSeek( cGrupo + cOrdem ))) .OR. (lDicDB .AND. !lFindPar)
+
+		cPergunt:= If(! "?" $ cPergunt .And. ! Empty(cPergunt),Alltrim(cPergunt)+" ?",cPergunt)
+		cPerSpa	:= If(! "?" $ cPerSpa  .And. ! Empty(cPerSpa) ,Alltrim(cPerSpa) +" ?",cPerSpa)
+		cPerEng	:= If(! "?" $ cPerEng  .And. ! Empty(cPerEng) ,Alltrim(cPerEng) +" ?",cPerEng)
+
+		Reclock( cAliasSX1 , .T. )
+
+		(cAliasSX1)->&("X1_GRUPO") := cGrupo
+		(cAliasSX1)->&("X1_ORDEM") := cOrdem
+		(cAliasSX1)->&("X1_PERGUNT") := cPergunt
+		(cAliasSX1)->&("X1_PERSPA") := cPerSpa
+		(cAliasSX1)->&("X1_PERENG") := cPerEng
+		(cAliasSX1)->&("X1_VARIAVL") := cVar
+		(cAliasSX1)->&("X1_TIPO") := cTipo
+		(cAliasSX1)->&("X1_TAMANHO") := nTamanho
+		(cAliasSX1)->&("X1_DECIMAL") := nDecimal
+		(cAliasSX1)->&("X1_PRESEL") := nPresel
+		(cAliasSX1)->&("X1_GSC") := cGSC
+		(cAliasSX1)->&("X1_VALID") := cValid
+
+		(cAliasSX1)->&("X1_VAR01") := cVar01
+
+		(cAliasSX1)->&("X1_F3") := cF3
+		(cAliasSX1)->&("X1_GRPSXG") := cGrpSxg
+
+		If Fieldpos("X1_PYME") > 0
+			If cPyme != Nil
+				(cAliasSX1)->&("X1_PYME") := cPyme
+			Endif
+		Endif
+
+		(cAliasSX1)->&("X1_CNT01") := cCnt01
+		If cGSC == "C"			// Mult Escolha
+			(cAliasSX1)->&("X1_DEF01") := cDef01
+			(cAliasSX1)->&("X1_DEFSPA1") := cDefSpa1
+			(cAliasSX1)->&("X1_DEFENG1") := cDefEng1
+
+			(cAliasSX1)->&("X1_DEF02") := cDef02
+			(cAliasSX1)->&("X1_DEFSPA2") := cDefSpa2
+			(cAliasSX1)->&("X1_DEFENG2") := cDefEng2
+
+			(cAliasSX1)->&("X1_DEF03") := cDef03
+			(cAliasSX1)->&("X1_DEFSPA3") := cDefSpa3
+			(cAliasSX1)->&("X1_DEFENG3") := cDefEng3
+
+			(cAliasSX1)->&("X1_DEF04") := cDef04
+			(cAliasSX1)->&("X1_DEFSPA4") := cDefSpa4
+			(cAliasSX1)->&("X1_DEFENG4") := cDefEng4
+
+			(cAliasSX1)->&("X1_DEF05") := cDef05
+			(cAliasSX1)->&("X1_DEFSPA5") := cDefSpa5
+			(cAliasSX1)->&("X1_DEFENG5") := cDefEng5
+		Endif
+
+		(cAliasSX1)->&("X1_HELP") := cHelp
+		(cAliasSX1)->&("X1_PICTURE") := cPicture
+
+		PutSX1Help(cKey,aHelpPor,aHelpEng,aHelpSpa)
+
+		(cAliasSX1)->(MsUnlock())
+	Else
+
+		lPort := ! "?" $ (cAliasSX1)->&("X1_PERGUNT") .And. ! Empty((cAliasSX1)->&("X1_PERGUNT"))
+		lSpa  := ! "?" $ (cAliasSX1)->&("X1_PERSPA")  .And. ! Empty((cAliasSX1)->&("X1_PERSPA"))
+		lIngl := ! "?" $ (cAliasSX1)->&("X1_PERENG")  .And. ! Empty((cAliasSX1)->&("X1_PERENG"))
+
+		If lPort .Or. lSpa .Or. lIngl
+			RecLock(cAliasSX1,.F.)
+			If lPort
+				(cAliasSX1)->&("X1_PERGUNT"):= Alltrim((cAliasSX1)->&("X1_PERGUNT"))+" ?"
+			EndIf
+			If lSpa
+				(cAliasSX1)->&("X1_PERSPA") := Alltrim((cAliasSX1)->&("X1_PERSPA")) +" ?"
+			EndIf
+			If lIngl
+				(cAliasSX1)->&("X1_PERENG") := Alltrim((cAliasSX1)->&("X1_PERENG")) +" ?"
+			EndIf
+			(cAliasSX1)->(MsUnLock())
+		EndIf
+	Endif
+
+	if lDicDB
+		(cAliasSX1)->(DBCloseArea())
+	endif
+
+	RestArea( aArea )
+
+Return
+
+/*/{Protheus.doc} XSocketP
+Função que realiza uma conexão via socket.
+
+@author pablo
+@since 27/09/2018
+@version 1.0
+@return lRet
+@param cIP, characters, descricao
+@param nPorta, numeric, descricao
+@param cString, characters, descricao
+@param cRetorno, characters, descricao
+@type function
+/*/
+User Function XSocketP(cIP,nPorta,cString,cRet)
+
+	Local oObj 			:= TSocketClient():New()
+	Local nX			:= 0
+	Local lRet			:= .F.
+	Local nTentativas	:= 3
+	Local nTimeOut		:= 10
+	Local nResp			:= 0
+	Local nEnvio		:= 0
+	Local nRetorno		:= 0
+
+//conout("")
+
+// tento realizar a conexao
+	For nX := 1 To nTentativas
+
+		//conout(" >> CONECTANDO (" + StrZero(nX,3) + ") ...")
+
+		If (nX > 1) //a partir da segunda tentativa, aguarda um tempo para tentar conectar novamente
+			Sleep(2000) //Para o processamento por 2 segundo
+		EndIf
+
+		// tento conectar no IP e Porta
+		nResp := oObj:Connect( nPorta, cIP, nTimeOut )
+
+		// se conectou sai do loop
+		If nResp == 0
+			Exit
+		EndIf
+
+	Next nX
+
+// se não foi realizada a conexão
+	If( !oObj:IsConnected() )
+		lRet := .F.
+		//conout(" >> FALHA NA CONEXAO")
+	Else
+
+		lRet := .T.
+		//conout(" >> CONEXAO REALIZADA COM SUCESSO")
+
+		nEnvio := oObj:Send(cString)
+
+		If( nEnvio != Len(cString) )
+			//conout( " >> ERRO: DADO NAO TRANSMITIDO" )
+		Else
+			// //conout( " - DADO ENVIADO: " + cString )
+			//conout( " >> DADO ENVIADO COM SUCESSO" )
+		EndIf
+
+		//conout(" >> XSocketP - RECEIVE (antes)  >> cRet: " + cRet)
+		nRetorno := oObj:Receive( @cRet, 10000 )
+		//conout(" >> XSocketP - RECEIVE (depois) >> cRet: " + cRet)
+
+		If( nRetorno > 0 )
+			//conout(" >> DADO RECEBIDO COM SUCESSO" )
+		Else
+			//conout(" >> NAO EXISTE RETORNO")
+		EndIf
+
+		// fecha a conexão
+		oObj:CloseConnection()
+		//conout(" >> CONEXAO FECHADA")
+
+	EndIf
+
+//conout("")
+
+Return(lRet)
+
+Static cTCR_IPRet := ""
+Static nTCR_Port := 0
+User Function TConnRet(lCentral)
+	
+	Local cQry := ""
+	Local lConn := .F.
+	Local oObj := TSocketClient():New()
+	Local nTimeOut := 5 //segundos
+	Local cIdComm := ""
+	Default lCentral := .F.
+
+	if empty(cTCR_IPRet) .or. nTCR_Port == 0
+		cIdComm := GetPvProfString("FWCOMMUNICATION", "ID", "", GetAdv97())
+
+		If Select("QRYCONN") > 0
+			QRYCONN->(DbCloseArea())
+		EndIf
+		cQry := "SELECT XXP_IP, XXX_PORT "
+		cQry += "FROM XXX, XXP "
+		cQry += "WHERE XXX_ID = XXP_ID "
+		cQry += "AND XXX.D_E_L_E_T_ = ' ' "
+		cQry += "AND XXP.D_E_L_E_T_ = ' ' "
+		if lCentral
+			cQry += "AND XXP_ID = '"+SubStr(cIdComm,1,4)+"' "
+		else
+			cQry += "AND XXP_ID = '"+SubStr(cIdComm,1,1)+"' "
+		endif
+		cQry += "AND XXX_PROTOC = '1' "
+		cQry := ChangeQuery(cQry)
+		// executo a query e crio o alias temporario
+		MPSysOpenQuery( cQry, 'QRYCONN' )
+		If QRYCONN->(!EOF())
+			cTCR_IPRet := Alltrim(QRYCONN->XXP_IP)
+			nTCR_Port  := Val(QRYCONN->XXX_PORT)
+		EndIf
+		QRYCONN->(dbCloseArea())
+	endif
+
+	if !empty(cTCR_IPRet) .AND. nTCR_Port > 0
+		// tento conectar no IP e Porta
+		nResp := oObj:Connect( nTCR_Port, cTCR_IPRet, nTimeOut )
+
+		// se conectou retorna zero
+		If nResp == 0
+			lConn := .T.
+		EndIf
+
+		lConn := oObj:IsConnected()
+
+		if lConn // fecha a conexão
+			oObj:CloseConnection()
+		endif
+	Endif
+
+	FreeObj(oObj)
+
+Return lConn
+
+
+/*/{Protheus.doc} MontaHeader
+Função para montagem do aHeader para MsNewGetDados, a partir dos campos passados
+
+@author Danilo
+@since 01/10/2018
+@version 1.0
+@return aHeadRet
+@param aCampos, Campos a compor o grid
+@param lRecno, Define se incluir campo Recno
+@type function
+/*/
+User Function MontaHeader(aCampos, lRecno)
+
+	Local aAuxLeg := {}
+	Local aHeadRet := {}
+	Local nX := 0
+	Default lRecno := .F.
+
+	For nX := 1 to Len(aCampos)
+		If SubStr(aCampos[nX],1,3) == "LEG"
+			aAuxLeg := StrToKArr(aCampos[nX],"-")
+			If len(aAuxLeg) = 1
+				aadd(aAuxLeg, ' ')
+			EndIf
+			Aadd(aHeadRet,{aAuxLeg[2],aAuxLeg[1],'@BMP',5,0,'','€€€€€€€€€€€€€€','C','','','',''})
+		ElseIf aCampos[nX] == "MARK"
+			Aadd(aHeadRet,{" ","MARK",'@BMP',3,0,'','€€€€€€€€€€€€€€','C','','','',''})
+		ElseIf !Empty(GetSx3Cache(aCampos[nX],"X3_CAMPO")) //verifica se o campo existe na SX3
+			aadd( aHeadRet, U_UAHEADER(aCampos[nX]) )
+		EndIf
+	Next nX
+
+	If lRecno
+		Aadd(aHeadRet, {"RecNo", "RECNO", "9999999999", 10, 0, "", "€€€€€€€€€€€€€€", "N", "","V", "", ""})
+	EndIf
+
+Return aHeadRet
+
+/*/{Protheus.doc} MontaDados
+Função que cria linha do aCols para MsNewGetDados
+Pode retornar linha em branco ou polulada com o registro do alias posicionado
+
+@author Danilo
+@since 01/10/2018
+@version 1.0
+@return aFieldFill
+@param _cALIAS, alias da tabela principal
+@param aCampos, Campos a compor o grid
+@param lEmpty, flag se é pra montar linha em branco ou nao
+@param cFunLeg, função para campo legenda
+@param lRecno, define se incluir campo Recno
+@param lDadosAux, define se irá inclur coluna oculta de dados auxiliares
+@type function
+/*/
+User Function MontaDados(_cALIAS, aCampos, lEmpty, cFunLeg, lRecno, lDadosAux)
+
+	Local aFieldFill := {}
+	Local cTabCp := ""
+	Local nX := 0
+	Default lEmpty := .F.
+	Default cFunLeg := "'BR_BRANCO'"
+	Default lRecno := .F.
+	Default lDadosAux := .F.
+
+	If lEmpty
+		For nX := 1 to Len(aCampos)
+			If Substr(aCampos[nX],1,3) == "LEG"
+				Aadd(aFieldFill, "BR_BRANCO")
+			ElseIf aCampos[nX] == "MARK"
+				Aadd(aFieldFill, "LBNO")
+			ElseIf !Empty(GetSx3Cache(aCampos[nX],"X3_CAMPO")) //verifica se o campo existe na SX3
+				If GetSx3Cache(aCampos[nX],"X3_TIPO") == "N"
+					Aadd(aFieldFill,0)
+				ElseIf GetSx3Cache(aCampos[nX],"X3_TIPO") == "D"
+					Aadd(aFieldFill,CTOD(""))
+				ElseIf GetSx3Cache(aCampos[nX],"X3_TIPO") == "L"
+					Aadd(aFieldFill,.F.)
+				Else
+					Aadd(aFieldFill,Space(GetSx3Cache(aCampos[nX],"X3_TAMANHO")))
+				EndIf
+			EndIf
+		Next nX
+
+		If lRecno
+			Aadd(aFieldFill, 0)//Recno
+		EndIf
+	Else
+		For nX := 1 to Len(aCampos)
+			If Substr(aCampos[nX],1,3) == "LEG"
+				Aadd(aFieldFill, &cFunLeg )
+			ElseIf aCampos[nX] == "MARK"
+				Aadd(aFieldFill, "LBNO")
+			Else
+				cTabCp := iif((At("_",aCampos[nX])-1)==2,"S"+SubStr(aCampos[nX],1,2),SubStr(aCampos[nX],1,3))
+				If GetSx3Cache(aCampos[nX],"X3_CONTEXT") == "V" //tratamento campos virtuais
+					Aadd(aFieldFill, CriaVar(aCampos[nX]) )
+				Else
+					Aadd(aFieldFill, (cTabCp)->&(aCampos[nX]) )
+				EndIf
+			EndIf
+		Next nX
+		If lRecno
+			Aadd(aFieldFill, (_cALIAS)->(Recno())) //Recno
+		EndIf
+	EndIf
+
+	If lDadosAux
+		Aadd(aFieldFill, {}) //Dados Aux
+	EndIf
+
+	Aadd(aFieldFill, .F.) //deleted
+
+Return aFieldFill
+
+
+/*/{Protheus.doc} TbcCss
+Estilos CSS para usar no template
+
+@author Danilo
+@since 01/10/2018
+@version 1.0
+@return cRet
+@param nTipo
+@type function
+/*/
+User Function TbcCss(nTipo)
+
+	Local cRet := ""
+
+	If nTipo == 1 //Botão azul P12
+
+		cRet := " QPushButton { color: #FFFFFF; font-weight:bold; "+;
+			"    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #3AAECB, stop: 1 #0F9CBF); "+;
+			"    border:1px solid #369CB5; "+;
+			"    border-radius: 3px; } "+;
+			" QPushButton:pressed { "+;
+			"    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #148AA8, stop: 1 #39ACC9); "+;
+			"    border:1px solid #369CB5; }";
+
+	EndIf
+
+Return cRet
+
+/*/{Protheus.doc} UOrdGrid
+//Faz ordenaçao de um MsNewGetDados
+Declarar
+Private __XVEZ 		:= "0"
+Private __ASC       := .T.
+
+@author thebr
+@since 30/10/2018
+@version 1.0
+@return Nil
+@type function
+
+/*/
+User Function UOrdGrid(oObj,nColum) //U_UOrdGrid(oNewGet,nColuna)
+
+	If __XVEZ == "0"
+		__XVEZ := "1"
+	Else
+		If __XVEZ == "1"
+			__XVEZ := "2"
+		EndIf
+	EndIf
+
+	If __XVEZ == "2"
+
+		// reordeno o array do grid
+		If __ASC
+			If valtype(oObj) == "A"
+				ASORT(oObj,,,{|x, y| x[nColum] < y[nColum] }) //ordena?o crescente
+			Else
+				ASORT(oObj:aCols,,,{|x, y| x[nColum] < y[nColum] }) //ordena?o crescente
+			EndIf
+			__ASC := .F.
+		Else
+			If valtype(oObj) == "A"
+				ASORT(oObj,,,{|x, y| x[nColum] > y[nColum] }) //ordena?o decrescente
+			Else
+				ASORT(oObj:aCols,,,{|x, y| x[nColum] > y[nColum] }) //ordena?o decrescente
+			EndIf
+			__ASC := .T.
+		EndIf
+
+		// fa? um refresh no grid
+		If valtype(oObj) == "O"
+			oObj:oBrowse:Refresh()
+		EndIf
+		__XVEZ := "0"
+
+	EndIf
+
+Return()
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} UREPLICA
+Função que grava o flag para integração das bases.
+POSTO X RETAGUARDA
+
+@author  TBC-GO
+@since   07/11/2018
+@version P12
+
+@return ${return}, ${return_description}
+@param cTabela, characters, 1- Tabela
+@param nIndice, numeric, 2- Índice
+@param cChave, characters, 3- Chave
+@param cTipo, characters, 4- Tipo (I - inclusao, A - alteracao, E - exclusao)
+@type function
+/*/
+//-------------------------------------------------------------------
+User Function UREPLICA(cTabela, nIndice, cChave, cTipo, lSli)
+
+	Local cCampoIni	 	:= iif(SubStr(cTabela,1,1) == "S",SubStr(cTabela,2,2),cTabela)
+	Local aArea		 	:= GetArea()
+	Local aAreaTab	 	:= (cTabela)->(GetArea())
+	Local aAreaSLI		:= SLI->(GetArea())
+	Local lIncluiSLI  	:= .F.
+	Local lMV_XINCSLI 	:= SuperGetMv("MV_XINCSLI",,.F.)
+	Local cLI_FUNC		:= SuperGetMv("MV_XFUNSLI",,"_STGENERIC          ")
+	Local cCodUsuario	:= RetCodUsr()
+	Local cNomUsuario	:= UsrRetName(cCodUsuario)
+	Local lSrvPDV 		:= SuperGetMV("MV_XSRVPDV",,.T.) //Servidor PDV ou base local do Totvs PDV
+	DEFAULT lSli 		:= .T.
+
+	//////////////////////////////////////////////////////////////////////////
+	// PE para dar acesso as alterações de registros pelo Posto Inteligente //
+	//////////////////////////////////////////////////////////////////////////
+	If ExistBlock("UPEREPLI")
+		ExecBlock("UPEREPLI",.F.,.F.,{cTabela, nIndice, cChave, cTipo})
+	EndIf
+
+// tratamento do novo modelo integração (padrão)
+////conout(">> UTILIZAÇÃO DE REPLICAÇÃO DE DADOS NO MODELO PADRÃO DE INTEGRAÇÃO, UTILIANDO O _SITUA E A TABELA SLI.")
+////conout(">> OPERACAO - " + cTipo + ". TABELA - " + cTabela + ". INDICE - " + cValToChar(nIndice) + ". CHAVE - " + AllTrim(cChave))
+
+	If !Empty(GetSx3Cache(cCampoIni + "_SITUA", "X3_CAMPO")) //se campo existe
+
+		If cTipo == "E" // se For exclusão tenho que considerar os deletados
+			SET DELETED OFF
+		EndIf
+
+		// posiciona no registro
+		(cTabela)->(DbSetOrder(nIndice))
+		If (cTabela)->(DbSeek(cChave))
+
+			If (cTabela)->(FieldPos(cCampoIni+"_SITUA")) > 0 .AND. lMV_XINCSLI .AND. lSli
+				// ***********************************************************************************************************************
+				//--- LEMBRAR DE MUDAR NA SX3 DBF O TAMANHO DO CAMPO LI_MSG PARA 140, HOJE ESTA COM 200 POSICOES GERAR ERRO DE INDICES!!!!
+				//--- CONFORME TDN O PROBLEMA OCORRE DEVIDO A LIMITAÇÃO E NR DE CONCORRENCIA DE INCLUSAO DE DADOS
+				//--- http://tdn.totvs.com/display/tec/ADS+Error+(7022)+-+Maximum+index+levels+exceeded
+				// ***********************************************************************************************************************
+				If ExistSIX("SLI","XREPLICA")
+					SLI->(DbOrderNickName("XREPLICA"))
+					////conout("CHAVE - <" + xFilial("SLI") + cTabela + cChave + ">" )
+					If SLI->(DbSeek(xFilial("SLI") + cTabela + RTrim( Substr(cChave,1,100) ) ) )
+						////conout("JA EXISTIA O REGISTRO NA SLI")
+						If cTipo == "E" .and. SLI->(Deleted())
+							RecLock("SLI")
+							SLI->(DbRecall())
+							SLI->LI_FILIAL  := xFilial("SLI")
+							SLI->LI_ESTACAO := ""
+							SLI->LI_TIPO	:= "UP"
+							SLI->LI_USUARIO := cNomUsuario
+							SLI->LI_DATA	:= Date()
+							SLI->LI_HORA	:= Time()
+							SLI->LI_MSG		:= Substr(cChave,1,100)	// Limite de 140 caracteres para base DBF esse campo e chave de indice!!!
+							SLI->LI_ALIAS	:= cTabela
+							SLI->LI_UPREC	:= (cTabela)->(RecNo())
+							SLI->LI_FUNC	:= cLI_FUNC
+							If SLI->( FieldPos("LI_SEQ") ) > 0
+								SLI->LI_SEQ := GetSXENum("SLI","LI_SEQ")
+							EndIf
+							SLI->(MsUnlock())
+							ConfirmSX8()
+						EndIf
+					Else
+						////conout("SERA GERADA A SLI")
+						lIncluiSLI := .T.
+					EndIf
+				Else
+					cMsgErr := "O seguinte indice não esta configurado:"+ CRLF
+					cMsgErr += "INDICE: SLI"+ CRLF
+					cMsgErr += "CHAVE: LI_FILIAL+LI_ALIAS+LI_MSG"+ CRLF
+					cMsgErr += "NICKNAME: XREPLICA"+ CRLF
+					cMsgErr += "Favor acione o administrador do sistema."+ CRLF
+					Help(, , "UREPLICA", , "Indice não configurado corretamente.", 1, 0, , , , , , {cMsgErr})
+				EndIf
+			EndIf
+
+			If RecLock(cTabela,.F.)
+				If (cTabela)->(FieldPos(cCampoIni+"_MSEXP")) > 0
+					(cTabela)->&(cCampoIni + "_MSEXP") := ""
+				EndIf
+				If (cTabela)->(FieldPos(cCampoIni+"_HREXP")) > 0
+					(cTabela)->&(cCampoIni + "_HREXP") := ""
+				EndIf
+				If lSrvPDV
+					If (cTabela)->(FieldPos(cCampoIni+"_SITUA")) > 0
+						(cTabela)->&(cCampoIni + "_SITUA") := "00"
+					EndIf
+					If cTipo == "E" .and. (cTabela)->(FieldPos(cCampoIni+"_XSITUA")) > 0
+						(cTabela)->&(cCampoIni + "_XSITUA") := "E"
+					elseIf cTipo == "E" .and. (cTabela)->(FieldPos(cCampoIni+"_MSEXP")) > 0
+						(cTabela)->&(cCampoIni + "_MSEXP") := "EXCLUI"
+					EndIf
+				Else
+					If (cTabela)->(FieldPos(cCampoIni+"_XSITUA")) > 0
+						(cTabela)->&(cCampoIni + "_XSITUA") := ""
+					EndIf
+				EndIf
+				If (cTabela)->(FieldPos(cCampoIni+"_XINDEX")) > 0
+					(cTabela)->&(cCampoIni + "_XINDEX") := nIndice
+				EndIf
+
+				(cTabela)->(MsUnlock())
+				////conout(">> FUNCAO REPLICA - FLAG '_SITUA' GRAVADO COM SUCESSO!")
+			EndIf
+
+			If lSrvPDV
+				// inclui a SLI - "Monitoramento das Estacoes" (LI_FILIAL+LI_ESTACAO+LI_TIPO)
+				If lIncluiSLI .AND. lSli
+					SLI->(RecLock("SLI",.T.))
+					SLI->LI_FILIAL  := xFilial("SLI")
+					SLI->LI_ESTACAO := ""
+					SLI->LI_TIPO	:= "UP"
+					SLI->LI_USUARIO := cNomUsuario
+					SLI->LI_DATA	:= Date()
+					SLI->LI_HORA	:= Time()
+					SLI->LI_MSG		:= Substr(cChave,1,100)	// Limite de 140 caracteres para base DBF esse campo e chave de indice!!!
+					SLI->LI_ALIAS	:= cTabela
+					SLI->LI_UPREC	:= (cTabela)->(RecNo())
+					SLI->LI_FUNC	:= cLI_FUNC
+					If SLI->( FieldPos("LI_SEQ") ) > 0
+						SLI->LI_SEQ := GetSXENum("SLI","LI_SEQ")
+					EndIf
+					SLI->(MsUnlock())
+					ConfirmSX8()
+				EndIf
+			EndIf
+
+		Else
+			////conout(">> FUNCAO REPLICA - FALHA NO DBSEEK - NAO FOI ENCONTRADO A CHAVE: <" + cChave + ">")
+		EndIf
+
+		//Desconsidera os registros deletados
+		SET DELETED ON
+
+	Else
+		////conout(">> FUNCAO REPLICA - CAMPO _SITUA NAO CADASTRADO NA TABELA " + cTabela)
+	EndIf
+
+	RestArea(aArea)
+	RestArea(aAreaTab)
+	RestArea(aAreaSLI)
+
+Return()
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} ExistSIX
+Verifica a existencia de um indice na SIX (pelo NICKNAME)
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function ExistSIX(cIndice,cNickName)
+	Local aArea := GetArea()
+	Local aAreaSIX := SIX->(GetArea())
+	Local lRet := .F.
+
+	SIX->(DbSetOrder(1)) // INDICE+ORDEM
+	SIX->(DbSeek(cIndice))
+	While SIX->(!Eof())
+		If AllTrim(SIX->NICKNAME) == AllTrim(cNickName)
+			lRet := .T.
+			Exit
+		EndIf
+		SIX->(DbSkip())
+	EndDo
+
+	RestArea(aAreaSIX)
+	RestArea(aArea)
+Return lRet
+
+
+/*/{Protheus.doc} XHELP
+Abre janela do tipo help, mostrando o problema e solução.
+
+@author pablo
+@since 20/11/2018
+@version 1.0
+@return ${return}, ${return_description}
+@param cTitulo, characters, descricao
+@param cMsg, characters, descricao
+@param cSolu, characters, descricao
+@type function
+/*/
+User Function XHELP(cTitulo, cMsg, cSolu)
+
+	Local oGetMsg
+	Local cGetMsg := ""
+	Local oGetSol
+	Local cGetSol := ""
+	Local oSButton1
+	Private oHelp
+
+	Default cTitulo := "HELP"
+	Default cMsg := ""
+	Default cSolu := ""
+
+	cGetMsg := cMsg
+	cGetSol := cSolu
+
+	DEFINE MSDIALOG oHelp TITLE cTitulo FROM 000, 000  TO 300, 290 COLORS 0, 16777215 PIXEL
+
+	@ 006, 010 SAY "Mensagem" SIZE 031, 007 OF oHelp COLORS 0, 16777215 PIXEL
+	@ 014, 010 GET oGetMsg VAR cGetMsg OF oHelp MULTILINE SIZE 125, 050 COLORS 0, 16777215 READONLY NOBORDER PIXEL
+
+	@ 066, 010 SAY "Solução" SIZE 025, 007 OF oHelp COLORS 0, 16777215 PIXEL
+	@ 074, 010 GET oGetSol VAR cGetSol OF oHelp MULTILINE SIZE 125, 050 COLORS 0, 16777215 READONLY NOBORDER PIXEL
+
+	DEFINE SBUTTON oSButton1 FROM 131, 108 TYPE 01 OF oHelp ACTION (oHelp:end()) ENABLE
+
+	ACTIVATE MSDIALOG oHelp CENTERED ON INIT (oSButton1:SetFocus())
+
+Return
+
+// Funcao para transformar variaveis em string.
+User Function XtoStrin(xValue)
+
+	Local cRet, nI, cType
+	Local cAspas := ''//'"'
+
+	cType := ValType(xValue)
+
+	DO CASE
+	case cType == "C"
+		return cAspas+ xValue +cAspas
+	case cType == "N"
+		return CvalToChar(xValue)
+	case cType == "L"
+		return if(xValue,'.T.','.F.')
+	case cType == "D"
+		return cAspas+ DtoC(xValue) +cAspas
+	case cType == "U"
+		return "null"
+	case cType == "A"
+		cRet := '['
+		For nI := 1 to len(xValue)
+			if(nI != 1)
+				cRet += ', '
+			EndIf
+			cRet += U_XtoStrin(xValue[nI])
+		Next
+		return cRet + ']'
+	case cType == "B"
+		return cAspas+'Type Block'+cAspas
+	case cType == "M"
+		return cAspas+'Type Memo'+cAspas
+	case cType =="O"
+		return cAspas+'Type Object'+cAspas
+	case cType =="H"
+		return cAspas+'Type Object'+cAspas
+	ENDCASE
+
+return "invalid type"
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} ClearAcolsMVC
+Função que limpa o acols MVC colocando uma linha em branco
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function ClearAcolsMVC(oGrid,oView)
+
+	Local aArea 	:= GetArea()
+	Local aFields	:= {}
+	Local aAux		:= {}
+	Local nX		:= 1
+
+// deleto todos os itens
+	For nX := 1 To oGrid:Length()
+
+		// posiciono na primeira linha
+		oGrid:GoLine(1)
+
+		// deleto o item
+		oGrid:DeleteLine()
+
+	Next nX
+
+// crio um array com a estrutura da SX3
+	For nX := 1 To Len(oGrid:aHeader)
+		If !Empty(GetSx3Cache(oGrid:aHeader[nX,2],"X3_CAMPO")) //verifica se o campo existe na SX3
+			Aadd(aFields, CriaVar(GetSx3Cache(oGrid:aHeader[nX,2],"X3_CAMPO")))
+		EndIf
+	Next nX
+
+	aadd(aFields,.F.)
+
+// copio a estrutura do array aDataModel
+	aAux := aClone(oGrid:aDataModel[1])
+
+// atualizo a estrutura
+	aAux[1,1] := aClone(aFields)
+
+// limpo a estrutura do aDataModel
+	oGrid:aDataModel := {}
+
+// atualizo a estrutura doa aDataModel
+	aadd(oGrid:aDataModel,aAux)
+
+// posiciono na primeira linha
+	oGrid:GoLine(1)
+
+// se estiver deletada, tiro a deleção
+	If oGrid:IsDeleted()
+		oGrid:UnDeleteLine()
+	EndIf
+
+// atualizo a View
+	If oView <> nil
+		oView:Refresh()
+	EndIf
+
+	RestArea(aArea)
+
+Return()
+
+/*/{Protheus.doc} UMultSel
+
+@author Totvs GO
+@since 10/04/2014
+@version 1.0
+
+@param _cTitulo, caracter, Titulo da tela a ser montada
+@param _cAlias, caracter, Alias a ser usado para busca dos registros
+@param _cColuna, caracter, Colunas a ser mostrada na grid
+@param _cColOrd, caracter, Coluna a ser considerada para ordenação
+@param _cCond, caracter, Condição para quando quiser ja trazer filtrados registros
+@param _cInf, caracter, String de dados iniciais a ser marcados
+@param _cSep, caracter, Separador a ser utilizado
+@param _lSelObr, logico, define se será obrigado a selecionar pelo menos um registro
+@param _cColRet, caracter, Colunas a serem retornadas (cRet)
+
+@return Lógico, .T. = Pode usar o abastecimento
+
+@description
+Monta tela de Multi-seleção de registros.
+
+@example
+//Campo com Botao
+cGet6 := U_UMultSel("Clientes","SA1","A1_COD,A1_NOME","A1_NOME","A1_MSBLQL = '2'",cGet6)
+oGet6:Refresh()
+
+//Consulta Especifica (F3)
+Em Express?: Colocar .T.
+Em Retorno: U_UMultSel("Tipos de Titulo","SX5","X5_CHAVE,X5_DESCRI","X5_CHAVE","X5_TABELA = '05'",&(ReadVar()))
+/*/
+User Function UMultSel(_cTitulo,_cAlias,_cColuna,_cColOrd,_cCond,_cInf,_cSep,_lSelObr,_cColRet)
+
+	Local cQry			:= ""
+	Local aInf			:= {}
+	Local aCampos		:= {}
+	Local aCampos2		:= {}
+	Local nX := 0
+
+	Local oBut1, oBut2, oBut3
+	Local oTempTable
+
+	Private aColunas  	:= {}
+	Private aColRets	:= {}
+	Private cRet
+	//Private cArqTrab	:= ""
+
+	Private oDlgSel
+	Private oMark
+	Private cMarca	 	:= "mk"
+	Private lImpFechar	:= .F.
+
+	Private oSay1, oSay2, oSay3, oSay4, oSay5
+	Private oTexto
+	Private cTexto		:= Space(40)
+	Private oLoja
+	Private cLoja		:= Space(TamSX3("A1_LOJA")[1])
+	Private nContSel	:= 0
+
+	Private cInf := _cInf
+
+	Default _cSep		:= ";" //separador de retorno
+	Default _lSelObr	:= .T. //obrigatorio selecionar pelo menos 1 registro
+	Default _cColRet	:= ""
+
+	If "X5Descri()" $ _cColuna
+		_cColuna := StrTran( _cColuna, "X5Descri()", "X5_DESCRI" )
+	EndIf
+
+	aInf := IIF(!Empty(_cInf),StrTokArr(AllTrim(StrTran(_cInf,CRLF,"")),_cSep),{})
+
+	aColunas := StrTokArr(_cColuna,",")
+	aadd(aCampos,{"OK","C",02,0})
+	aadd(aCampos2,{"OK","","",""})
+	If _cAlias == "SX5" //X5_CHAVE,X5_DESCRI
+		aadd(aCampos,{aColunas[1],"C",6,0})
+		aadd(aCampos,{aColunas[2],"C",55,0})
+		aadd(aCampos2,{aColunas[1],"","Código",""})
+		aadd(aCampos2,{aColunas[2],"","Descrição",""})
+	Else
+		For nX:=1 to Len(aColunas)
+			aadd(aCampos,{aColunas[nX],GetSx3Cache(aColunas[nX],"X3_TIPO"),TamSX3(aColunas[nX])[1],TamSX3(aColunas[nX])[2]})
+			aadd(aCampos2,{aColunas[nX],"",GetSx3Cache(aColunas[nX],"X3_TITULO"),""})
+		Next nX
+	EndIf
+
+	//colunas a serem retornadas
+	If !Empty(_cColRet)
+		aColRets := StrTokArr(_cColRet,",")
+	Else
+		If _cAlias == "SA1" .Or. _cAlias == "SA1FOR"
+			If _cAlias == "SA1"
+				aColRets := {aColunas[1],aColunas[2]}
+			Else
+				aColRets := {aColunas[4]}
+			EndIf
+		Else
+			aColRets := {aColunas[1]}
+		EndIf
+	EndIf
+
+	cQry := "SELECT DISTINCT "+_cColuna+""
+	cQry += " FROM "+RetSqlName(IIF(_cAlias == "SA1FOR","SA1",_cAlias))+""
+	cQry += " WHERE D_E_L_E_T_ <> '*'"
+	//cQry += " AND "+IIF(SubStr(_cAlias,1,1) == "S",SubStr(_cAlias,2,2),_cAlias)+"_FILIAL = '"+xFilial(_cAlias)+"'"
+	cQry += " AND "+IIF(SubStr(IIF(_cAlias == "SA1FOR","SA1",_cAlias),1,1) == "S",SubStr(IIF(_cAlias == "SA1FOR","SA1",_cAlias),2,2),IIF(_cAlias == "SA1FOR","SA1",_cAlias))+"_FILIAL = '"+xFilial(IIF(_cAlias == "SA1FOR","SA1",_cAlias))+"'"
+
+	If ValType(_cCond) <> "U" .And. !empty(_cCond)
+		cQry += " AND "+_cCond
+	EndIf
+
+	cQry += " ORDER BY "+_cColOrd+""
+	cQry := ChangeQuery(cQry)
+
+	oTempTable := FWTemporaryTable():New( "TRBAUX" ) //Criação do objeto
+	oTempTable:SetFields( aCampos ) //Monta os campos da tabela
+	oTempTable:Create() //Criação da tabela
+	SQLToTrb(cQry, aCampos, "TRBAUX") // Preenche um arquivo temporário com o conteúdo do retorno da query.
+
+	DbSelectArea("TRBAUX")
+	TRBAUX->(DbGoTop())
+
+	DEFINE MSDIALOG oDlgSel TITLE "Selecao de Dados - " + _cTitulo From 000,000 TO 450,700 COLORS 0, 16777215 PIXEL
+
+	@ 005, 005 SAY oSay1 PROMPT "Nome/Descricao:" SIZE 060, 007 OF oDlgSel COLORS 0, 16777215 PIXEL
+
+	If _cAlias == "SA1" .Or. _cAlias == "SA1FOR"
+		@ 004, 050 MSGET oTexto VAR cTexto SIZE 160, 010 OF oDlgSel COLORS 0, 16777215 PIXEL Picture "@!"
+		@ 005, 220 SAY oSay5 PROMPT "Loja:" SIZE 030, 007 OF oDlgSel COLORS 0, 16777215 PIXEL
+		@ 004, 235 MSGET oLoja VAR cLoja SIZE 020, 010 OF oDlgSel COLORS 0, 16777215 PIXEL Picture "@!"
+	Else
+		@ 004, 050 MSGET oTexto VAR cTexto SIZE 200, 010 OF oDlgSel COLORS 0, 16777215 PIXEL Picture "@!"
+	EndIf
+
+	@ 005, 272 BUTTON oBut1 PROMPT "Localizar" SIZE 040, 010 OF oDlgSel ACTION Localiza(_cAlias,cTexto,cLoja) PIXEL
+
+	//Browse
+	oMark := MsSelect():New("TRBAUX","OK","",aCampos2,,@cMarca,{020,005,190,348})
+	oMark:bMark 				:= {|| MarcaIt("TRBAUX",@nContSel,@oSay3)}
+	oMark:oBrowse:LCANALLMARK 	:= .T.
+	oMark:oBrowse:LHASMARK    	:= .T.
+	oMark:oBrowse:bAllMark 		:= {|| MarcaT("TRBAUX",@nContSel,@oSay3)}
+
+	@ 193, 005 SAY oSay2 PROMPT "Total de registros selecionados:" SIZE 200, 007 OF oDlgSel COLORS 0, 16777215 PIXEL
+	@ 193, 090 SAY oSay3 PROMPT cValToChar(nContSel) SIZE 040, 007 OF oDlgSel COLORS 0, 16777215 PIXEL
+
+	//Linha horizontal
+	@ 203, 005 SAY oSay4 PROMPT Repl("_",342) SIZE 342, 007 OF oDlgSel COLORS CLR_GRAY, 16777215 PIXEL
+
+	@ 213, 272 BUTTON oBut2 PROMPT "Confirmar" SIZE 040, 010 OF oDlgSel ACTION Conf001(_cAlias,1,_cSep,_lSelObr) PIXEL  //Conf001(1,_cSep)
+	@ 213, 317 BUTTON oBut3 PROMPT "Fechar" SIZE 030, 010 OF oDlgSel ACTION Fech001(1) PIXEL
+
+	ACTIVATE MSDIALOG oDlgSel CENTERED VALID lImpFechar //impede o usuario fechar a janela atraves do [X]
+
+	oTempTable:Delete() //Exclui a tabela temporaria
+
+Return cRet
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} Conf001
+SubFunção da UMultSel - Conf001
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function Conf001(_cAlias,_nOri,_cSep,_lSelObr)
+
+	Local lAux 	:= .F.
+	Local nX := 0
+
+	Default _cSep := "/"
+
+	If nContSel == 0 .And. _lSelObr
+		MsgInfo("Nenhum registro selecionado!!","Atenção")
+		Return
+	EndIf
+
+	TRBAUX->(DbGoTop())
+	cRet := ""
+
+	While TRBAUX->(!EOF())
+
+		If TRBAUX->OK == "mk"
+			If !lAux
+				For nX:=1 to Len(aColRets)
+					cRet += TRBAUX->&(aColRets[nX])
+				Next nX
+				lAux := .T.
+			Else
+				cRet += _cSep
+				For nX:=1 to Len(aColRets)
+					cRet += TRBAUX->&(aColRets[nX])
+				Next nX
+			EndIf
+		EndIf
+
+		TRBAUX->(DbSkip())
+	EndDo
+
+	Fech001(2)
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} Fech001
+SubFunção da UMultSel - Fech001
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function Fech001(_nOpc)
+
+	lImpFechar := .T.
+
+	If _nOpc == 1
+		cRet := cInf
+	EndIf
+
+	If Select("TRBAUX") > 0
+		TRBAUX->(DbCloseArea())
+	EndIf
+
+	oDlgSel:End()
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} MarcaIt
+SubFunção da UMultSel - MarcaIt
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function MarcaIt(cTabAux,nContSel,oSay3)
+
+	If (cTabAux)->OK == "mk"
+		nContSel++
+	Else
+		--nContSel
+	EndIf
+
+	oSay3:Refresh()
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} MarcaT
+SubFunção da UMultSel - MarcaT
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function MarcaT(cTabAux,nContSel,oSay3)
+
+	Local lMarca 	:= .F.
+	Local lNMARCA 	:= .F.
+
+	nContSel := 0
+
+	(cTabAux)->(dbGoTop())
+
+	While (cTabAux)->(!EOF())
+
+		If (cTabAux)->OK == "mk" .And. !lMarca
+			RecLock(cTabAux,.F.)
+			(cTabAux)->OK := "  "
+			(cTabAux)->(MsUnlock())
+			lNMarca := .T.
+		Else
+			If !lNMarca
+				RecLock(cTabAux,.F.)
+				(cTabAux)->OK := "mk"
+				(cTabAux)->(MsUnlock())
+				nContSel++
+				lMarca := .T.
+			EndIf
+		EndIf
+		(cTabAux)->(dbSkip())
+	EndDo
+
+	(cTabAux)->(dbGoTop())
+
+	oSay3:Refresh()
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} Localiza
+SubFunção da UMultSel - Localiza
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function Localiza(_cAlias,_cTexto, _cLoja)
+
+	If _cAlias == "SA1" .Or. _cAlias == "SA1FOR"
+
+		If !Empty(_cTexto) .Or. !Empty(_cLoja)
+
+			If !Empty(_cTexto) .And. !Empty(_cLoja)
+
+				TRBAUX->(dbSkip())
+
+				While TRBAUX->(!EOF())
+					If AllTrim(_cTexto) $ TRBAUX->&(aColunas[3]) .And. AllTrim(_cLoja) $ TRBAUX->&(aColunas[2])
+						Exit
+					EndIf
+
+					TRBAUX->(dbSkip())
+				EndDo
+
+			ElseIf !Empty(_cTexto) .And. Empty(_cLoja)
+
+				TRBAUX->(dbSkip())
+
+				While TRBAUX->(!EOF())
+					If AllTrim(_cTexto) $ TRBAUX->&(aColunas[3])
+						Exit
+					EndIf
+
+					TRBAUX->(dbSkip())
+				EndDo
+
+			Else
+				TRBAUX->(dbSkip())
+
+				While TRBAUX->(!EOF())
+					If AllTrim(_cLoja) $ TRBAUX->&(aColunas[2])
+						Exit
+					EndIf
+
+					TRBAUX->(dbSkip())
+				EndDo
+			EndIf
+
+		Else
+			TRBAUX->(dbGoTop())
+		EndIf
+	Else
+
+		If !Empty(_cTexto)
+
+			TRBAUX->(dbSkip())
+
+			While TRBAUX->(!EOF())
+				If AllTrim(_cTexto) $ TRBAUX->&(aColunas[2])
+					Exit
+				EndIf
+
+				TRBAUX->(dbSkip())
+			EndDo
+		Else
+			TRBAUX->(dbGoTop())
+		EndIf
+	EndIf
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} URetIn
+Monta informação para forma IN do Sql
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function URetIn(_cInf,_cSep)
+
+	Local cRet := ""
+	Local aAux := {}
+	Local nI
+	Default _cSep := "/"
+
+	aAux := StrTokArr(_cInf,_cSep)
+
+	For nI := 1 To Len(aAux)
+		If nI <> Len(aAux)
+			cRet += "'" + aAux[nI] + "'" + ","
+		Else
+			cRet += "'" + aAux[nI] + "'"
+		EndIf
+	Next
+
+	If Empty(cRet)
+		cRet := "''"
+	EndIf
+
+Return cRet
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} UPOSICIO
+Função para inicializador padrão de campos virtuais, para nao desposicionar produto/cliente
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function UPOSICIO(_cAlias, _nInd, _cChav, _cRet)
+
+	Local aArea := GetArea(_cAlias)
+	Local cRecEnt := &(_cAlias)->(Recno())
+	Local cRet := ""
+
+	//If type("INCLUI")=="U" .OR. (!INCLUI)
+	cRet := POSICIONE(_cAlias, _nInd, _cChav, _cRet)
+	//EndIf
+
+	&(_cAlias)->(DbGoTo(cRecEnt))
+	RestArea(aArea)
+
+Return cRet
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} MYNOCHAR
+Remove caracteres especiais
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function MYNOCHAR(cStr, cMask)
+
+	Local nX := 0
+	Local cRet := ""
+	Default cMask := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz .,()-_;:/\!?&+"
+
+	cStr := FwNoAccent(Alltrim(cStr))
+
+	For nX :=1 to len(cStr)
+		If SubStr(cStr,nX,1) $ cMask
+			cRet += SubStr(cStr,nX,1)
+		EndIf
+	Next nX
+
+Return cRet
+
+/*/{Protheus.doc} PodeUseAbast
+
+@author Totvs GO
+@since 10/04/2014
+@version 1.0
+
+@param cCodAbast, caracter, Codigo do Abastecimento
+@param cCodOrc, caracter, numero do orçamento em que será utilizado
+@param cMsgLog, caracter, mensagem de validação. deve ser passar por referencia
+
+@return Lógico, .T. = Pode usar o abastecimento
+
+@description
+Verifica se o abastecimento está sendo usado em outro orçamento
+
+@example
+U_PodeUseAbast("000000121", "XXXXXX", @cError )
+
+/*/
+User Function PodeUseAbast(cCodAbast, cCodOrc, cMsgLog, cDocSerUso, lVdRecup)
+
+	Local lRet := .T.
+	Local lTemDev := .F.
+	Local lSrvPDV := SuperGetMV("MV_XSRVPDV",,.T.) //Servidor PDV
+
+	Local aArea	   := GetArea()
+	Local aAreaSL2 := SL2->(GetArea())
+	Local aAreaSL1 := SL1->(GetArea())
+	Local aAreaSA6 := SA6->(GetArea())
+	Default cMsgLog := ""
+	Default cDocSerUso := ""
+	Default lVdRecup := .F. //verificar venda recuperada?
+
+	SL2->(DbOrderNickName("SL2MIDCOD")) //L2_FILIAL+L2_MIDCOD
+	SL2->(DbSeek(xFilial("SL2")+cCodAbast))
+	While SL2->(!Eof()) .AND. (SL2->L2_FILIAL+SL2->L2_MIDCOD) == (xFilial("SL2")+cCodAbast)  //percorro todos
+
+		lTemDev := .F.
+
+		SL1->(DbSetOrder(1)) //L1_FILIAL+L1_NUM
+		SL1->(DbSeek(xFilial("SL1")+SL2->L2_NUM))
+
+		If !(SL2->L2_NUM == cCodOrc); //-- se ja usou abastecimento em outro orçamento..
+			.AND. SL1->L1_SITUA <> "07"; //-- desconsiderar as vendas canceladas..
+			.AND. SL1->L1_STORC <> "C" //-- desconsiderar as vendas que realizaram solicitação de cancelamento
+			//.and. (lVdRecup .OR. Empty(SL1->L1_STATUS)) //-- desconsidera as vendas recuperadas (L1_STATUS preenchido)
+
+			If !empty(SL1->L1_DOC) //se tem cancelamento, vai estar vazio, desconsidera
+				
+				If lSrvPDV //se PDV/CENTRAL verifico se tem SLI
+					//Chamado POSTO-199 - Cancelamento demora subir e sistema entende que o abastecimento ainda está em uso
+					if HasSLICanc(SL1->L1_DOC, SL1->L1_SERIE, SL2->L2_PDV)
+						lTemDev := .T.
+					endif
+				else //verifico se tem devoluçao só quando é retaguarda
+					SD1->(DbSetOrder(19)) //D1_FILIAL+D1_NFORI+D1_SERIORI+D1_FORNECE+D1_LOJA
+					If SD1->(DbSeek(xFilial("SD1") + SL1->L1_DOC + SL1->L1_SERIE ))
+						If SD1->D1_TIPO == 'D'
+							lTemDev := .T.
+						EndIf
+					EndIf
+				EndIf
+
+				If !lTemDev
+					If !empty(cDocSerUso)
+						cDocSerUso += ", "
+					EndIf
+					cDocSerUso += "Doc/Serie: " + SL2->L2_DOC + "/" + AllTrim(SL2->L2_SERIE)
+					cDocSerUso += ", Dt.Emiss: " + DtoC(SL2->L2_EMISSAO)
+					cDocSerUso += ", Operador: " + AllTrim(Posicione("SL1",1,xFilial("SL1")+SL2->L2_NUM,"L1_OPERADO")) + " - " + AllTrim(Posicione("SA6",1,xFilial("SA6")+SL1->L1_OPERADO,"A6_NOME"))
+					cDocSerUso += ", PDV: " + AllTrim(SL2->L2_PDV)
+					cMsgLog += "O abastecimento N. " + AllTrim(cCodAbast) + " já foi utilizado." + CRLF +;
+						iif(Empty(SL2->L2_DOC),"Orçamento em aberto: " + AllTrim(SL2->L2_NUM), "Número Nota/Serie: " + SL2->L2_DOC+ "/" + SL2->L2_SERIE + " | PDV: " + AllTrim(SL2->L2_PDV)) + "." + CRLF + "Favor cancelar nota para realizar venda novamente."
+					lRet := .F.
+					exit //sai do while
+				EndIf
+			EndIf
+		EndIf
+
+		SL2->(DbSkip())
+	EndDo
+
+	If lRet .and. lSrvPDV .and. !Empty(cCodAbast)
+		lRet := ValAbastCen(cCodAbast,@cMsgLog)
+	EndIf
+
+	RestArea(aAreaSA6)
+	RestArea(aAreaSL1)
+	RestArea(aAreaSL2)
+	RestArea(aArea)
+
+Return(lRet)
+
+/*/{Protheus.doc} ValAbastCen
+Valida se o abastecimento foi baixado por outro PDV pela base da central PDV.
+
+@type function
+@version 12.1.27
+@author Pablo Nunes
+@since 22/11/2022
+@param cCodAbast, character, código do abastecimento
+@param cMsgLog, character, mensagem para ser apresentada ao usuário
+@return logical, retorna .F. quando já foi usado por outro PDV (ou seja, esta em uma venda ATIVA)
+/*/
+Static Function ValAbastCen(cCodAbast,cMsgLog)
+
+	Local lRet := .T.
+	Local aParam := {}
+	Local xRet := Nil
+	Local aStation := {} 			//Informacoes da estacao  // [1]-CAIXA [2]-ESTACAO [3]-SERIE [4]-PDV [5]-LG_SERNFIS
+
+	aParam := {"U_UPodAbas"}
+	aParam := {"FindFunction",aParam}
+	xRet := Nil
+	If FWHostPing() .AND. STBRemoteExecute("_EXEC_CEN",aParam,,,@xRet) //verifica se a função existe na central
+
+		If ValType(xRet)=="L" .and. xRet
+
+			aParam := {cCodAbast,.T.}
+			aParam := {"U_UPodAbas",aParam}
+			xRet := Nil
+			If FWHostPing() .AND. STBRemoteExecute("_EXEC_CEN",aParam,,,@xRet) //valida se o abastecimento esta sendo usado em uma venda ATIVA (Central)
+
+				If ValType(xRet)=="A" .and. Len(xRet) >= 6
+					
+					aStation := STBInfoEst(	1, .T. ) //Informacoes da estacao  // [1]-CAIXA [2]-ESTACAO [3]-SERIE [4]-PDV [5]-LG_SERNFIS
+					If AllTrim(aStation[4]) <> AllTrim(xRet[05])
+
+						cMsgLog += "O abastecimento N. " + AllTrim(cCodAbast) + " já foi utilizado." + CRLF +;
+							"Número Nota/Serie: "+xRet[01]+ "/"+xRet[02]+" | Emissão: " + DtoC(Iif(ValType(xRet[03])="C",StoD(xRet[03]),xRet[03])) + " | PDV: " + AllTrim(xRet[05]) + "." + CRLF +;
+							"Favor cancelar nota para realizar venda novamente."
+
+						lRet := .F.
+
+					EndIf
+				elseIf ValType(xRet)=="C" .and. !empty(xRet)
+					cMsgLog := xRet
+					lRet := .F.
+				EndIf
+
+			EndIf
+		EndIf
+	EndIf
+
+Return lRet
+
+/*/{Protheus.doc} UPodAbas
+Valida se o abastecimento esta sendo usado em uma venda ATIVA
+
+@type function
+@version 12.1.27
+@author Pablo Nunes
+@since 22/11/2022
+@param cCodAbast, character, código do abastecimento
+@param lFinaliza, logical, muda o status do abastecimento para o número do orçamento que esta ativo
+@return array, dados da venda que o abastecimento esta sendo usado: DOC, SERIE, EMISSAO, OPERADOR, PDV e NUMERO	
+/*/
+User Function UPodAbas(cCodAbast,lFinaliza)
+
+	Local xRet
+	Local aRet := {}
+	Local cQry := ""
+	Local nMaxDiv		:= SuperGetMv("MV_XMAXDIV",,0)
+	Default lFinaliza := .F.
+
+	LjGrvLog( "UPodAbas", "Parametros -> cCodAbast: " + cCodAbast + "; lFinaliza: " + iif(lFinaliza,"SIM","NAO") )
+
+	cQry := "SELECT SL2.L2_DOC, SL2.L2_SERIE, SL2.L2_EMISSAO, SL1.L1_OPERADO, SL2.L2_PDV, SL2.L2_NUM "
+	cQry += " FROM "+RetSqlName("SL2")+" SL2 " + CRLF
+	cQry += " INNER JOIN "+RetSqlName("SL1")+" SL1 ON (SL1.D_E_L_E_T_ = ' ' AND SL1.L1_FILIAL = SL2.L2_FILIAL AND SL1.L1_NUM = SL2.L2_NUM AND SL1.L1_DOC = SL2.L2_DOC AND SL1.L1_SERIE = SL2.L2_SERIE)" + CRLF
+	cQry += " WHERE SL2.D_E_L_E_T_ = ' ' " + CRLF
+	cQry += " AND SL2.L2_MIDCOD = '"+cCodAbast+"' " + CRLF
+	cQry += " AND SL1.L1_SITUA IN ('TX','CP') " + CRLF
+	cQry += " AND SL1.L1_DOC <> '         ' AND SL1.L1_SERIE <> '   ' " + CRLF
+
+    LjGrvLog( "UPodAbas", "Parametros -> cQry: ", cQry )
+
+	If Select("QAUX") > 0
+		QAUX->(dbCloseArea())
+	EndIf
+
+	cQry := ChangeQuery(cQry)
+	TcQuery cQry New ALIAS "QAUX"
+
+	If QAUX->(!EOF())
+
+		While QAUX->(!EOF())
+
+			//Chamado POSTO-199 - Cancelamento demora subir e sistema entende que o abastecimento ainda está em uso
+			if !HasSLICanc(QAUX->L2_DOC, QAUX->L2_SERIE, QAUX->L2_PDV)
+
+				aRet := {QAUX->L2_DOC, QAUX->L2_SERIE, QAUX->L2_EMISSAO, QAUX->L1_OPERADO, QAUX->L2_PDV, QAUX->L2_NUM}
+
+				//COMENTADO POR DANILO: Chamado POSTO-199 - Cancelamento demora subir e sistema entende que o abastecimento ainda está em uso
+				//If lFinaliza //como o abastecimento já esta sendo usado em um orçamento, finaliza ele na tabela de abastecimentos...
+				//	StwFsChangeStatus(cCodAbast, QAUX->L2_NUM, QAUX->L2_PDV, .T., QAUX->L2_DOC, QAUX->L2_SERIE)
+				//EndIf
+
+				EXIT
+			endif
+			
+			QAUX->(DbSkip())
+		Enddo
+
+	EndIf
+
+	QAUX->(dbCloseArea())
+
+	LjGrvLog( "HasSLICanc", "aRet ", aRet )
+	xRet := aRet
+
+	//VALIDACAO DE DIVERGENCIA DE ABASTECIMENTO
+	//Colocado aqui, pois o campo MID_XDIVER e MID_XMANUT não vão para o registro do PDV, e por isso não da pra validar na base local
+	if empty(aRet)
+		MID->(DbSetOrder(1)) //MID_FILIAL+MID_CODABA
+		if MID->(DbSeek(xFilial("MID")+cCodAbast))
+			If MID->MID_XDIVER == "2" .AND. (nMaxDiv==0 .OR. MID->MID_LITABA > nMaxDiv)  //1=Nao;2= A mais;3=A menos
+				xRet := "O abastecimento " + AllTrim(MID->MID_CODABA) + " foi gerado a partir de uma diferença positiva de encerrante e ultrapassa o limite superior estabelecido. Não pode ser baixado. Contate o administrador do sistema!"
+			ElseIf MID->MID_XDIVER == "3" .AND. Empty(MID->MID_XMANUT) //1=Nao;2= A mais;3=A menos
+				xRet := "Houve uma diferença de encerrante a menor para o abastecimento " + AllTrim(MID->MID_CODABA) + ". Favor providenciar lançamento de manutenção e vincular a este abastecimento. Contate o administrador do sistema! "
+			endif
+		endif
+	endif
+
+Return xRet
+
+//verifica se tem SLI de cancelamento de venda
+//Chamado POSTO-199 - Cancelamento demora subir e sistema entende que o abastecimento ainda está em uso
+Static Function HasSLICanc(cDoc, cSerie, cPDV)
+
+	Local cQry := ""
+	Local lRet := .F.
+
+	cQry := "SELECT R_E_C_N_O_ RECSLI  "
+	cQry += "FROM "+RetSqlName("SLI")+" SLI "
+	cQry += "WHERE SLI.D_E_L_E_T_ = ' ' "
+	cQry += "AND SLI.LI_TIPO = 'CAN' "
+	cQry += "AND SLI.LI_MSG LIKE '%|"+cDoc+"|"+cPDV+"%' "
+	cQry += "AND SLI.LI_MSG LIKE '%|"+cSerie+"%' "
+
+	LjGrvLog( "HasSLICanc", "cQry ", cQry )
+
+	If Select("QAUXSLI") > 0
+		QAUXSLI->(DbCloseArea())
+	EndIf
+
+	cQry := ChangeQuery(cQry)
+	TcQuery cQry New ALIAS "QAUXSLI"
+
+	If QAUXSLI->(!EOF()) .AND. QAUXSLI->RECSLI > 0
+		lRet := .T.
+	EndIf
+
+	LjGrvLog( "HasSLICanc", "Retorno: Tem SLI? ", iif(lRet,"SIM","NÃO") )
+
+	QAUXSLI->(DbCloseArea())
+	
+Return lRet
+
+
+/*/{Protheus.doc} TPGETNUM
+Retorna proximo codigo, e confirma utilização
+@author thebr
+@since 10/05/2019
+@version 1.0
+@return cCodigo
+@param _cAlias, tabela a ser utilizada
+@param _cCampo, campo a ser utilizado
+@type function
+/*/
+User Function TPGETNUM(_cAlias, _cCampo)
+
+	Local cRet
+
+	//conout("TPGETNUM INICIO")
+	//conout("TPGETNUM _cAlias " + _cAlias)
+	//conout("TPGETNUM _cCampo " + _cCampo)
+
+	DbSelectArea(_cAlias)
+	cRet := GETSXENUM( _cAlias, _cCampo, _cCampo + cEmpAnt )
+	ConfirmSx8()
+
+	//conout("TPGETNUM cRet " + cRet)
+
+Return cRet
+
+/*
+GdRstDblClick - Restaura e Executa o oGetDados:oBrowse:blDblClick
+GetDados:oBrowse:blDblClick
+*/
+Function U_UGdRstDb( oGetDados , blDblClick )
+
+	Local bSvblDblClick
+
+	bSvblDblClick := oGetDados:oBrowse:blDblClick
+	oGetDados:oBrowse:blDblClick := blDblClick
+	Eval( oGetDados:oBrowse:blDblClick )
+	oGetDados:oBrowse:blDblClick := bSvblDblClick
+
+Return( NIL )
+
+/*/{Protheus.doc} GrvAbMID
+Funcao que faz a gravacao dos abastecimentos.
+
+@author pablo
+@since 16/10/2018
+@version 1.0
+@return Nil
+@param aCampos, array, {NOME DO CAMPO, CONTEUDO}
+@type function
+/*/
+User Function GrvAbMID(aCampos)
+
+	Local lRet 		:= .T.
+	Local nI		:= 1
+	Local lAux		:= .F.
+	Local aErro		:= {}
+	Local oAux
+	Local oModel
+	Local oStruct
+
+	//conout(" >> INCLUSAO DO ABASTECIMENTO")
+
+	// Aqui ocorre o inst?ciamento do modelo de dados (Model)
+	oModel := FWLoadModel( 'TRETA008' ) //Mvc dos abastecimentos
+
+	// Temos que definir qual a operação deseja: 3 - Inclusão / 4 - Alteraão / 5 - Exclusão
+	oModel:SetOperation(3)
+
+	// Antes de atribuirmos os valores dos campos temos que ativar o modelo
+	oModel:Activate()
+
+	// Instanciamos apenas referentes aos dados
+	oAux := oModel:GetModel('MIDMASTER')
+
+	// Obtemos a estrutura de dados
+	oStruct := oAux:GetStruct()
+	aAux 	:= oStruct:GetFields()
+
+	For nI := 1 To Len(aCampos)
+
+		// Verifica se os campos passados existem na estrutura do modelo
+		If ( nPos := aScan(aAux,{|x| AllTrim( x[3] )== AllTrim(aCampos[nI][1]) } ) ) > 0
+
+			// ?feita a atribui?o do dado ao campo do Model
+			If !( lAux := oModel:SetValue( 'MIDMASTER', aCampos[nI][1], (aCampos[nI][2] )) )
+
+				// Caso a atribui?o n? possa ser feita, por algum motivo (valida?o, por
+				// o m?odo SetValue retorna .F.
+				lRet := .F.
+				Exit
+
+			EndIf
+
+		EndIf
+
+	Next nI
+
+	If lRet
+
+		// Faz-se a valida?o dos dados
+		If ( lRet := oModel:VldData() )
+
+			// Se o dados foram validados faz-se a grava?o efetiva dos dados (commit)
+			oModel:CommitData()
+
+		EndIf
+
+	EndIf
+
+	If !lRet
+
+		// Se os dados n? foram validados obtemos a descri?o do erro para gerar LOG ou mensagem de aviso
+		aErro := oModel:GetErrorMessage()
+
+		AutoGrLog( "Id do formulario de origem: " 	+ ' [' + AllToChar( aErro[1] ) + ']' )
+		AutoGrLog( "Id do campo de origem:      " 	+ ' [' + AllToChar( aErro[2] ) + ']' )
+		AutoGrLog( "Id do formulario de erro:   " 	+ ' [' + AllToChar( aErro[3] ) + ']' )
+		AutoGrLog( "Id do campo de erro:        " 	+ ' [' + AllToChar( aErro[4] ) + ']' )
+		AutoGrLog( "Id do erro:                 " 	+ ' [' + AllToChar( aErro[5] ) + ']' )
+		AutoGrLog( "Mensagem do erro:           " 	+ ' [' + AllToChar( aErro[6] ) + ']' )
+		AutoGrLog( "Mensagem da solucao:        " 	+ ' [' + AllToChar( aErro[7] ) + ']' )
+		AutoGrLog( "Valor atribuido:            " 	+ ' [' + AllToChar( aErro[8] ) + ']' )
+		AutoGrLog( "Valor anterior:             " 	+ ' [' + AllToChar( aErro[9] ) + ']' )
+
+		//conout(" >> ABASTECIMENTO NAO CADASTRADO")
+		//conout(MostraErro())
+
+	Else
+
+		//conout(" >> ABASTECIMENTO CADASTRADO COM SUCESSO")
+
+	EndIf
+
+	// Desativamos o Model
+	oModel:DeActivate()
+
+Return(lRet)
+
+/*/{Protheus.doc} ExcAbMID
+Função que faz a exclusão de um abastecimento e envia para retaguarda.
+
+@author pablo
+@since 17/10/2018
+@version 1.0
+@return Nil
+@param cNumAbast, characters, descricao
+@type function
+/*/
+User Function ExcAbMID(cNumAbast)
+
+	Local aArea 	:= GetArea()
+	Local aAreaMID	:= MID->(GetArea())
+	Local lRet		:= .T.
+
+	MID->(DbSetOrder(1)) //MID_FILIAL+MID_CODABA
+	If MID->(DbSeek(xFilial("MID") + cNumAbast))
+
+		If Reclock("MID",.F.)
+
+			MID->(DbDelete())
+			MID->(MsUnlock())
+
+			// envio o abastecimento excluído para a tabela de saída MD6, para ser levado para Retaguarda
+			U_UReplica("MID",1,xFilial("MID")+cNumAbast,"E")
+
+		Else
+			Aviso( "Atenção!", "Não foi possível excluir o abastecimento!", {"Ok"} )
+			lRet := .F.
+		EndIf
+
+	Else
+		Aviso( "Atenção!", "Número de abastecimento inválido!", {"Ok"} )
+		lRet := .F.
+	EndIf
+
+	RestArea(aAreaMID)
+	RestArea(aArea)
+
+Return(lRet)
+
+/*/{Protheus.doc} AltAbMID
+Função que faz a alteração de um abastecimento e envia para retaguarda.
+
+@author pablo
+@since 17/10/2018
+@version 1.0
+@return Nil
+@param cNumAbast, characters, descricao
+@param aCampos, array, descricao
+@type function
+/*/
+User Function AltAbMID(cNumAbast,aCampos)
+
+	Local aArea 	:= GetArea()
+	Local aAreaMID	:= MID->(GetArea())
+	Local lRet		:= .T.
+	Local nX		:= 1
+
+	MID->(DbSetOrder(1)) //MID_FILIAL+MID_CODABA
+	If MID->(DbSeek(xFilial("MID") + cNumAbast))
+		If Reclock("MID",.F.)
+			For nX := 1 To Len(aCampos)
+				MID->&(aCampos[nX,1]) := aCampos[nX,2]
+			Next nX
+			MID->(MsUnlock())
+			// envio o abastecimento alterado para a tabela de saída MD6, para ser levado para Retaguarda
+			//Danilo: passado ultimo parametro .F. para nao gerar SLI.
+			//Alinhado com Anderson, que tabela MID não necessita gerar SLI quando inclusao ou alteração
+			U_UReplica("MID",1,xFilial("MID") + MID->MID_CODABA,"A", .F.)
+		Else
+			Aviso( "Atenção!", "Não foi possível alterar o abastecimento!", {"Ok"} )
+			lRet := .F.
+		EndIf
+	Else
+		Aviso( "Atenção!", "Número de abastecimento inválido!", {"Ok"} )
+		lRet := .F.
+	EndIf
+
+	RestArea(aAreaMID)
+	RestArea(aArea)
+
+Return(lRet)
+
+
+/*/{Protheus.doc} UFilBlq
+Tela de seleção de filiais que o registro será bloqueado.
+
+@author Totvs GO
+@since 14/08/2019
+@version 1.0
+
+@return ${return}, ${return_description}
+
+@type function
+@obs Programa chamado pelo click no campo
+/*/
+User Function UFilBlq()
+
+	Local aInf			:= {}
+	Local aDados		:= {}
+
+	Local aCampos		:= {{"OK","C",02,0},{"M0_CODFIL","C",08,0},{"M0_FILIAL","C",30,0},{"M0_NOMECOM","C",30,0}}
+	Local aCampos2		:= {{"OK","","",""},{"M0_CODFIL","","Código",""},{"M0_FILIAL","","Descrição",""},{"M0_NOMECOM","","Nome Comercial",""}}
+
+	Local nPosIt		:= 0
+	Local nI
+
+	Private oTTabFilBlq
+	Private oMark
+	Private cMarca	 	:= "mk"
+	Private lImpFechar	:= .F.
+
+	Private oSay1, oSay2, oSay3, oSay4
+	Private oTexto
+	Private cTexto		:= Space(40)
+	Private nContSel	:= 0
+
+	Private cBkpInf 	:= ""
+	Private oDlgFilBlq
+	Private aBlqFil		:= {}
+
+	If Alltrim(ReadVar()) == "M->A1_XFILBLQ"
+
+		aInf := IIF(!Empty(M->A1_XFILBLQ),StrTokArr(AllTrim(M->A1_XFILBLQ),"/"),{})
+		cBkpInf := M->A1_XFILBLQ
+
+		dbSelectArea("SM0")
+		SM0->(dbGoTop())
+
+		While SM0->(!EOF())
+			If AllTrim(SM0->M0_CODIGO) == AllTrim(cEmpAnt)
+				aAdd(aDados,{SM0->M0_CODFIL,SM0->M0_FILIAL,SM0->M0_NOMECOM})
+			EndIf
+
+			SM0->(dbSkip())
+		EndDo
+
+		oTTabFilBlq := FWTemporaryTable():New( "TRBAUX" ) //Criação do objeto
+		oTTabFilBlq:SetFields( aCampos ) //Monta os campos da tabela
+		oTTabFilBlq:Create() //Criação da tabela
+
+		DbSelectArea("TRBAUX")
+
+		If Len(aDados) > 0
+			For nI := 1 to Len(aDados)
+				TRBAUX->(RecLock("TRBAUX",.T.))
+				If Len(aInf) > 0
+					nPosIt := aScan(aInf,{|x| AllTrim(x) == AllTrim(aDados[nI][1])})
+					If nPosIt > 0
+						TRBAUX->OK := "mk"
+						nContSel++
+					Else
+						TRBAUX->OK := "  "
+					EndIf
+				Else
+					TRBAUX->OK := "  "
+				EndIf
+				TRBAUX->&("M0_CODFIL") := aDados[nI][1]
+				TRBAUX->&("M0_FILIAL") := aDados[nI][2]
+				TRBAUX->&("M0_NOMECOM") := aDados[nI][3]
+				TRBAUX->(MsUnlock())
+			Next
+		Else
+			TRBAUX->(RecLock("TRBAUX",.T.))
+			TRBAUX->OK		:= "  "
+			TRBAUX->&("M0_CODFIL") := Space(6)
+			TRBAUX->&("M0_FILIAL") := Space(40)
+			TRBAUX->&("M0_NOMECOM") := Space(40)
+			TRBAUX->(MsUnlock())
+		EndIf
+
+		TRBAUX->(DbGoTop())
+
+		DEFINE MSDIALOG oDlgFilBlq TITLE "Seleção de Dados - Filiais Bloqueadas" From 000,000 TO 450,700 COLORS 0, 16777215 PIXEL
+
+		@ 005, 005 SAY oSay1 PROMPT "Descrição:" SIZE 060, 007 OF oDlgFilBlq COLORS 0, 16777215 PIXEL
+		@ 004, 050 MSGET oTexto VAR cTexto SIZE 200, 010 OF oDlgFilBlq COLORS 0, 16777215 PIXEL Picture "@!"
+		@ 005, 272 BUTTON oButton1 PROMPT "Localizar" SIZE 040, 010 OF oDlgFilBlq ACTION FindText(cTexto) PIXEL
+
+		//Browse
+		oMark := MsSelect():New("TRBAUX","OK","",aCampos2,,@cMarca,{020,005,190,348})
+		oMark:bMark 				:= {|| MarcaIt("TRBAUX",@nContSel,@oSay3)}
+		oMark:oBrowse:LCANALLMARK 	:= .T.
+		oMark:oBrowse:LHASMARK    	:= .T.
+		oMark:oBrowse:bAllMark 		:= {|| MarcaT("TRBAUX",@nContSel,@oSay3)}
+
+		@ 193, 005 SAY oSay2 PROMPT "Total de registros selecionados:" SIZE 200, 007 OF oDlgFilBlq COLORS 0, 16777215 PIXEL
+		@ 193, 090 SAY oSay3 PROMPT cValToChar(nContSel) SIZE 040, 007 OF oDlgFilBlq COLORS 0, 16777215 PIXEL
+
+		//Linha horizontal
+		@ 203, 005 SAY oSay4 PROMPT Repl("_",342) SIZE 342, 007 OF oDlgFilBlq COLORS CLR_GRAY, 16777215 PIXEL
+
+		@ 213, 272 BUTTON oButton2 PROMPT "Confirmar" SIZE 040, 010 OF oDlgFilBlq ACTION Conf002() PIXEL
+		@ 213, 317 BUTTON oButton3 PROMPT "Fechar" SIZE 030, 010 OF oDlgFilBlq ACTION Fech002() PIXEL
+
+		ACTIVATE MSDIALOG oDlgFilBlq CENTERED VALID lImpFechar //impede o usuario fechar a janela atraves do [X]
+
+		oTTabFilBlq:Delete() //Exclui a tabela temporaria
+
+	EndIf
+
+Return .T.
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} Conf002
+Confirma a seleção
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function Conf002()
+
+	Local lAux 	:= .F.
+	Local nAux	:= 0
+	Local nX
+
+	TRBAUX->(dbGoTop())
+
+	M->A1_XFILBLQ := PadR("",TamSx3("A1_XFILBLQ")[01])
+
+	While TRBAUX->(!EOF())
+		If TRBAUX->OK == "mk"
+			If !lAux
+				M->A1_XFILBLQ := AllTrim(TRBAUX->M0_CODFIL)
+				lAux := .T.
+			Else
+				M->A1_XFILBLQ += "/" + AllTrim(TRBAUX->M0_CODFIL)
+			EndIf
+			nAux += Len(TRBAUX->M0_CODFIL)
+		EndIf
+
+		TRBAUX->(dbSkip())
+	EndDo
+
+	M->A1_XFILBLQ := PadR(M->A1_XFILBLQ,TamSx3("A1_XFILBLQ")[01])
+
+	If MsgYesNo("Gostaria de aplicar as alterações para outra LOJA deste cliente?","Bloqueio/Desbloqueio")
+		aBlqFil	:= U_UBlqFil(M->A1_COD,M->A1_LOJA)
+	EndIf
+
+	If Len(aBlqFil) > 0
+
+		cFilBlq	:= M->A1_XFILBLQ
+
+		//DbSelectArea("SA1")
+		//SA1->( DbSetOrder(1) )
+		//For nX:=1 to Len(aBlqFil)
+		//	If SA1->( DbSeek(xFilial("SA1")+aBlqFil[nX,1]+aBlqFil[nX,2]) )
+		//		Reclock("SA1",.F.)
+		//			SA1->A1_XFILBLQ := cFilBlq
+		//		SA1->( MsUnlock() )
+		//	Else
+		//		MsgAlert("Não foi possível atualizar o Código: '"+aBlqFil[nX,1]+"', Loja: '"+aBlqFil[nX,2]+"' e Nome: '"+aBlqFil[nX,3]+"'","ERRO")
+		//	EndIf
+		//Next nX
+
+		For nX:=1 to Len(aBlqFil)
+
+			cSqlUpd := "UPDATE SA1 "
+			cSqlUpd += " SET "
+			cSqlUpd += 		" SA1.A1_XFILBLQ = '" + cFilBlq + "' "
+			cSqlUpd += " FROM " + RetSqlName("SA1") + " SA1 "
+			cSqlUpd += " WHERE SA1.D_E_L_E_T_ = ' ' "
+			cSqlUpd += 		" AND SA1.A1_FILIAL = '" + xFilial("SA1") + "' "
+			cSqlUpd += 		" AND SA1.A1_COD = '" + aBlqFil[nX,1] + "' "
+			cSqlUpd += 		" AND SA1.A1_LOJA = '" + aBlqFil[nX,2] + "' "
+			nStatus := TCSQLEXEC(cSqlUpd)
+
+			If (nStatus < 0)
+				If !IsBlind()
+					//Alert("TCSQLError() " + TCSQLError())
+					MsgAlert("Não foi possível atualizar o Código: '"+aBlqFil[nX,1]+"', Loja: '"+aBlqFil[nX,2]+"' e Nome: '"+aBlqFil[nX,3]+"'" + CRLF+CRLF + "TCSQLError(): "+ CRLF + TCSQLError(),"ERRO")
+				Else
+					//conout("Não foi possível atualizar o Código: '"+aBlqFil[nX,1]+"', Loja: '"+aBlqFil[nX,2]+"' e Nome: '"+aBlqFil[nX,3]+"'")
+					//conout("TCSQLError() " + TCSQLError())
+				EndIf
+			EndIf
+
+		Next nX
+
+	EndIf
+
+	Fech002()
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} Fech002
+Fecha a tela de seleção
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function Fech002()
+
+	lImpFechar := .T.
+
+	If Select("TRBAUX") > 0
+		TRBAUX->(DbCloseArea())
+	EndIf
+
+	oDlgFilBlq:End()
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} FindText
+Localiza filial...
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function FindText(_cTexto)
+
+	If !Empty(_cTexto)
+		TRBAUX->(dbSkip())
+
+		While TRBAUX->(!EOF())
+			If AllTrim(_cTexto) $ TRBAUX->M0_FILIAL
+				Exit
+			EndIf
+
+			TRBAUX->(dbSkip())
+		EndDo
+	Else
+		TRBAUX->(dbGoTop())
+	EndIf
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} UVldFilB
+Valida os códigos das empresas, inseridos no campo "Filial Blq."
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function UVldFilB(cString)
+
+	Local lRet		 := .T.
+	Local nTamCodFil := FWSizeFilial() //etorna o tamanho do campo Filial (M0_CODFIL)
+
+	While !Empty(cString)
+
+		If Len(AllTrim(cString)) > nTamCodFil .And. SubStr(cString,nTamCodFil+1,1)  <> '/'
+			Alert("Os códigos das empresas devem ser separados por '/'!")
+			lRet := .F.
+		ElseIf !ValidaFilial(SubStr(cString,1,nTamCodFil))
+			Alert("O código '"+SubStr(cString,1,nTamCodFil)+"' não corresponde a uma empresa válida!")
+			lRet := .F.
+		Else
+			lRet := .T.
+		EndIf
+
+		cString := SubStr(cString,nTamCodFil+2,Len(cString))
+
+	EndDo
+
+Return (lRet)
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} ValidaFilial
+Valida Filial...
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function ValidaFilial(cEmpresa)
+
+	Local aArea	:= SM0->( GetArea() )
+	Local lRet	:= .F.
+
+	dbSelectArea("SM0")
+	SM0->(dbGoTop())
+
+	While SM0->(!EOF())
+		If AllTrim(SM0->M0_CODFIL) == cEmpresa
+			lRet := .T.
+			Exit
+		EndIf
+
+		SM0->(dbSkip())
+	EndDo
+
+	RestArea( aArea )
+
+Return (lRet)
+
+/*/{Protheus.doc} UBlqFil
+Tela de seleção de filiais do Cliente.
+Programa chamado pela função FilBlq no campo SA1->A1_XFILBLQ 
+
+@author Totvs GO
+@since 14/08/2019
+@version 1.0
+
+@return ${return}, ${return_description}
+
+@type function
+/*/
+User Function UBlqFil(cCodCli,cLojCli)
+
+	Local cQry			:= ""
+	Local aCampos		:= {{"OK","C",02,0},{"A1_COD","C",TamSx3("A1_COD")[1],0},{"A1_LOJA","C",TamSx3("A1_LOJA")[1],0},{"A1_NOME","C",TamSx3("A1_NOME")[1],0}}
+	Local aCampos2		:= {{"OK","","",""},{"A1_COD","","Código",""},{"A1_LOJA","","Loja",""},{"A1_NOME","","Nome",""}}
+	Local oSay2, oSay3, oSay4
+
+	Private oTTabBlqFil
+
+	Private oMarkBlqFil
+	Private cMarca	 	:= "mk"
+	Private lFechBlqFil	:= .F.
+
+	Private nContBlqFil	:= 0
+	Private oDlgBlqFil
+	Private aRetBlqFil	:= {}
+
+	Default cCodCli := M->A1_COD
+	Default cLojCli := M->A1_LOJA
+
+	//Busca Total de Litros por Filial
+	cQry := " SELECT A1_COD, A1_LOJA, A1_NOME "
+	cQry += " FROM "+RetSqlName("SA1")+" SA1 "
+	cQry += " WHERE SA1.D_E_L_E_T_<> '*' "
+	cQry += " AND SA1.A1_COD = '"+cCodCli+"' "
+	cQry += " AND SA1.A1_LOJA <> '"+cLojCli+"' "
+	cQry += " ORDER BY A1_FILIAL "
+	cQry := ChangeQuery(cQry)
+
+	oTTabBlqFil := FWTemporaryTable():New( "TRBAUXSA1" ) //Criação do objeto
+	oTTabBlqFil:SetFields( aCampos ) //Monta os campos da tabela
+	oTTabBlqFil:Create() //Criação da tabela
+	SQLToTrb(cQry, aCampos, "TRBAUXSA1") // Preenche um arquivo temporário com o conteúdo do retorno da query.
+
+	DbSelectArea("TRBAUXSA1")
+
+	TRBAUXSA1->(DbGoTop())
+	If TRBAUXSA1->(!Eof())
+
+		DEFINE MSDIALOG oDlgBlqFil TITLE "Seleção de Dados - Filiais dos Clientes" From 000,000 TO 450,700 COLORS 0, 16777215 PIXEL
+
+		//Browse
+		oMarkBlqFil := MsSelect():New("TRBAUXSA1","OK","",aCampos2,,@cMarca,{020,005,190,348})
+		oMarkBlqFil:bMark 				:= {|| MarcaIt("TRBAUXSA1",@nContBlqFil,@oSay3)}
+		oMarkBlqFil:oBrowse:LCANALLMARK 	:= .T.
+		oMarkBlqFil:oBrowse:LHASMARK    	:= .T.
+		oMarkBlqFil:oBrowse:bAllMark 		:= {|| MarcaT("TRBAUXSA1",@nContBlqFil,@oSay3)}
+
+		@ 193, 005 SAY oSay2 PROMPT "Total de registros selecionados:" SIZE 200, 007 OF oDlgBlqFil COLORS 0, 16777215 PIXEL
+		@ 193, 090 SAY oSay3 PROMPT cValToChar(nContBlqFil) SIZE 040, 007 OF oDlgBlqFil COLORS 0, 16777215 PIXEL
+
+		//Linha horizontal
+		@ 203, 005 SAY oSay4 PROMPT Repl("_",342) SIZE 342, 007 OF oDlgBlqFil COLORS CLR_GRAY, 16777215 PIXEL
+
+		@ 213, 272 BUTTON oButton2 PROMPT "Confirmar" SIZE 040, 010 OF oDlgBlqFil ACTION Conf003() PIXEL
+		@ 213, 317 BUTTON oButton3 PROMPT "Fechar" SIZE 030, 010 OF oDlgBlqFil ACTION Fech003() PIXEL
+
+		ACTIVATE MSDIALOG oDlgBlqFil CENTERED VALID lFechBlqFil //impede o usuario fechar a janela atraves do [X]
+
+	Else
+		MsgInfo("Não existe outras LOJAS cadastradas para este cliente, código: '"+M->A1_COD+"'", "Atenção")
+	EndIf
+
+	oTTabBlqFil:Delete() //Exclui a tabela temporaria
+
+Return aRetBlqFil
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} Conf003
+Confirma tela U_UBlqFil...
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function Conf003()
+
+	aRetBlqFil := {}
+
+	TRBAUXSA1->(dbGoTop())
+
+	While TRBAUXSA1->(!EOF())
+		If TRBAUXSA1->OK == "mk"
+			aAdd(aRetBlqFil,{AllTrim(TRBAUXSA1->A1_COD),AllTrim(TRBAUXSA1->A1_LOJA),AllTrim(TRBAUXSA1->A1_NOME)})
+		EndIf
+
+		TRBAUXSA1->(dbSkip())
+	EndDo
+
+	Fech003()
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} Fech003
+Fecha a tela de seleção U_UBlqFil...
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function Fech003()
+
+	lFechBlqFil := .T.
+
+	If Select("TRBAUXSA1") > 0
+		TRBAUXSA1->(DbCloseArea())
+	EndIf
+
+	oDlgBlqFil:End()
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} GetRecado
+Função que verifica se existe um recado para a placa,
+cliente, grupo de cliente ou motorista informado 
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+//U_GetRecado("","","143485","01","","1","")
+User Function GetRecado(cPlaca,cMotorista,cCliente,cLoja,cGrupo,cLocal,_cMsg,lShowDlg)
+
+	Local cMensagem		:= ""
+	Local cPulaLinha 	:= CRLF
+	Local oMemo1
+	Local cCondicao		:= ""
+	Local bCondicao
+	Local oButton1
+	Local nWidth, nHeight
+	Local oDlgRecado, oPnlFull, oPnlTop
+	Local cCssMemo := ""
+	Local cCorDestak := ""
+	Local cCorBorder := ""
+	Local cCorFont := ""
+	Local cU92Cor := ""
+	Default cLocal		:= "1"
+	Default _cMsg		:= ""
+	Default lShowDlg	:= .T.
+
+	cCondicao := " ( Empty(U92->U92_FILREC) .OR. U92->U92_FILREC == '" + cFilAnt + "' ) "
+	cCondicao += " .AND. U92->U92_DATAIN <= STOD('" + DTOS(dDataBase) + "') "
+	cCondicao += " .AND. ( Empty(U92->U92_DTVALI) .OR. U92->U92_DTVALI >= STOD('" + DTOS(dDataBase) + "') ) "
+	cCondicao += " .AND. ( Empty(U92->U92_GRPCLI) .OR. U92->U92_GRPCLI == cGrupo ) "
+	cCondicao += " .AND. ( Empty(U92->U92_CODCLI) .OR. ( U92->U92_CODCLI == cCliente .AND. U92->U92_LOJACL == cLoja) ) "
+	cCondicao += " .AND. ( Empty(U92->U92_PLACA) .OR. U92->U92_PLACA == cPlaca ) "
+	cCondicao += " .AND. ( Empty(U92->U92_MOTORI) .OR. U92->U92_MOTORI == cMotorista ) "
+//cCondicao += " .AND. ( U92->U92_VISUAL == '1' .OR. U92->U92_VISUAL == cLocal ) "
+
+	U92->(DbSetOrder(1))
+
+// limpo os filtros da U92
+	U92->(DbClearFilter())
+
+// faço um filtro na U92
+	bCondicao 	:= "{|| " + cCondicao + " }"
+	U92->(DbSetFilter(&bCondicao,cCondicao))
+
+// posiciono no primeiro item da U92
+	U92->(DbGoTop())
+
+	While U92->(!Eof())
+
+		If !Empty(U92->U92_MSG)
+			cMensagem += DtoC(U92->U92_DATAIN) + " - " + AllTrim(U92->U92_MSG) + cPulaLinha
+		EndIf
+
+		if U92->(FieldPos("U92_CORDES")) > 0
+			if empty(cU92Cor) .OR. U92->U92_CORDES < cU92Cor //cor 1 é prioridade
+				if U92->U92_CORDES == "1" //vermelho
+					cCorDestak := "#FCB6BD"
+					cCorBorder := "#dc3545"
+					cCorFont := "#000000"
+				elseif U92->U92_CORDES == "2" //amarelo
+					cCorDestak := "#FFEDB8"
+					cCorBorder := "#ffc107"
+					cCorFont := "#000000"
+				elseif U92->U92_CORDES == "3" //verde
+					cCorDestak := "#AFE6BC"
+					cCorBorder := "#28a745"
+					cCorFont := "#000000"
+				elseif U92->U92_CORDES == "4" //azul
+					cCorDestak := "#AFD3F7"
+					cCorBorder := "#007bff"
+					cCorFont := "#000000"
+				endif
+			endif
+		endif
+
+		U92->(DbSkip())
+	EndDo
+
+// limpo os filtros da U92
+	U92->(DbClearFilter())
+
+	If lShowDlg .AND. !Empty(cMensagem) .AND. (empty(_cMsg) .OR. _cMsg <> cMensagem )
+
+		if !empty(cCorDestak)
+			cCssMemo := "TMultiGet { font: bold; font-size: 13px; text-align: right; color: "+cCorFont+"; background-color: "+cCorDestak+"; border: 2px solid "+cCorBorder+"; border-radius: 4px; padding: 4px; }TMultiGet:disabled {color:#656565; background-color: transparent; border: none; }"
+		endif
+
+		DEFINE MSDIALOG oDlgRecado FROM 0,0 TO 260,400 TITLE "Recados" PIXEL  STYLE nOr(WS_VISIBLE, WS_POPUP)
+		oDlgRecado:lEscClose := .F.
+
+		nWidth := (oDlgRecado:nWidth/2)
+		nHeight := (oDlgRecado:nHeight/2)
+
+		@ 000, 000 MSPANEL oPnlFull SIZE nWidth, nHeight OF oDlgRecado
+		oPnlFull:SetCSS( "TPanel{border: 2px solid #999999; background-color: #fafafa;}" )
+
+		@ 000, 000 MSPANEL oPnlTop SIZE nWidth, 017 OF oPnlFull
+		oPnlTop:SetCSS( POSCSS (GetClassName(oPnlTop), CSS_BAR_TOP ))
+		@ 004, 005 SAY oSay1 PROMPT "Recados" SIZE 100, 015 OF oPnlTop COLORS 0, 16777215 PIXEL
+		oSay1:SetCSS( POSCSS (GetClassName(oSay1), CSS_BREADCUMB ))
+		//oClose := TBtnBmp2():New( 002,nWidth-25,20,30,'FWSKIN_DELETE_ICO',,,,bCloseDlg,oPnlTop,,,.T. )
+		//oClose:SetCss("TBtnBmp2{border: none;background-color: none;}")
+
+		@ 020,005 Get oMemo1 Var cMensagem MEMO Size 193,100 READONLY PIXEL OF oPnlFull
+		if empty(cCssMemo)
+			oMemo1:SetCSS( POSCSS(GetClassName(oMemo1), CSS_GET_NORMAL))
+		else
+			oMemo1:SetCSS( cCssMemo )
+		endif
+
+		oButton1 := TButton():New( 123, 164," OK ",oPnlFull,{|| oDlgRecado:End() },030,014,,,,.T.,,,,{|| .T.})
+		oButton1:SetCSS( POSCSS (GetClassName(oButton1), CSS_BTN_FOCAL ))
+
+		ACTIVATE MSDIALOG oDlgRecado CENTERED
+
+	EndIf
+
+Return(cMensagem)
+
+	Static cX3RETCP	:= ""
+//-------------------------------------------------------------------
+/*/{Protheus.doc} CPADSX3
+CONSULTA ESPECÌFICA DE CAMPOS DA SX3
+UTILIZAÇÃO:
+Consulta Especifica (F3)
+Em Expressão: Colocar .T.
+Em Retorno: U_CPADSX3( "SE1", M->MeuCampo, .F.)
+
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function CPADSX3(_cTabela, _cContent, _lVirtual)
+
+	Local _cTitulo, oGet1, oGet2, oSay1, oSay2, oButton1, oButton2, oButton3
+	Local nX
+	Local aHeaderEx := {}
+	Local aAlterFields := {}
+	Local aDados := {}
+	Local aCampos
+
+	Default _cContent := space(10)
+	Default _lVirtual := .T.
+
+	aCampos := FWSX3Util():GetAllFields( _cTabela , _lVirtual )
+
+	If empty(aCampos)
+		Return cX3RETCP
+	EndIf
+
+	Private oNewGetX3
+	Private nOpcx := 0
+	Private cGet1 := space(10)
+	Private cGet2 := space(25)
+	Private oDlgX3
+
+	aSort(aCampos)
+	For nX := 1 to len(aCampos)
+		aAdd(aDados,{aCampos[nX], GetSx3Cache(aCampos[nX],"X3_DESCRIC"), .F.})
+	Next nX
+
+	_cTitulo := "Consultar - Campos tabela " + _cTabela
+
+	DEFINE MSDIALOG oDlgX3 TITLE _cTitulo FROM 000, 000  TO 400, 500 COLORS 0, 16777215 PIXEL
+
+	@ 007, 042 SAY oSay1 PROMPT "Descricao" SIZE 025, 007 OF oDlgX3 COLORS 0, 16777215 PIXEL
+	@ 007, 006 SAY oSay2 PROMPT "Codigo" SIZE 025, 007 OF oDlgX3 COLORS 0, 16777215 PIXEL
+	@ 016, 006 MSGET oGet1 VAR cGet1 SIZE 030, 010 OF oDlgX3 COLORS 0, 16777215 PIXEL
+	@ 016, 042 MSGET oGet2 VAR cGet2 SIZE 157, 010 OF oDlgX3 COLORS 0, 16777215 PIXEL
+	@ 016, 207 BUTTON oButton1 PROMPT "Buscar" SIZE 037, 012 OF oDlgX3 ACTION (X3Filtrar()) PIXEL
+
+	Aadd(aHeaderEx, {"Campo","X3_CAMPO","@!",10,0,"","€€€€€€€€€€€€€€","C","","","",""})
+	Aadd(aHeaderEx, {"Descrição","X3_DESCRIC","",25,0,"","€€€€€€€€€€€€€€","C","","","",""})
+
+	oNewGetX3 := MsNewGetDados():New(033, 006, 174, 246,, "AllwaysTrue", "AllwaysTrue", "+Field1+Field2", aAlterFields,, 999, "AllwaysTrue", "", "AllwaysTrue", oDlgX3, aHeaderEx, aDados)
+	oNewGetX3:oBrowse:bLDblClick := {|| (nOpcx := 1,oDlgX3:End()) }
+
+	@ 180, 006 BUTTON oButton2 PROMPT "Confirmar" SIZE 037, 012 OF oDlgX3 ACTION (nOpcx := 1,oDlgX3:End()) PIXEL
+	@ 180, 049 BUTTON oButton3 PROMPT "Cancelar" SIZE 037, 012 OF oDlgX3 ACTION (nOpcx := 0,oDlgX3:End()) PIXEL
+
+	ACTIVATE MSDIALOG oDlgX3 CENTERED
+
+	If nOpcx == 1
+		cX3RETCP := oNewGetX3:aCols[oNewGetX3:nAt][1]
+	Else
+		cX3RETCP := _cContent
+	EndIf
+
+Return cX3RETCP
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} X3Filtrar
+description
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function X3Filtrar()
+
+	Local nX := 1
+
+	For nX := 1 to len(oNewGetX3:aCols)
+		If (!empty(oNewGetX3:aCols[nX][1]) .AND. UPPER(alltrim(cGet1)) $ UPPER(oNewGetX3:aCols[nX][1])) .OR. ;
+				(!empty(oNewGetX3:aCols[nX][2]) .AND. UPPER(alltrim(cGet2)) $ UPPER(oNewGetX3:aCols[nX][2]) )
+			EXIT
+		EndIf
+	Next nX
+
+	If nX > len(oNewGetX3:aCols)
+		oNewGetX3:GoTop()
+	Else
+		oNewGetX3:GoTo(nX)
+	EndIf
+
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} UAHEADER
+Retorna o aHeader para ser utilizado na classe MsNewGetDados
+Vetor com informações das colunas no formato:
+01 - Título
+02 - Campo
+03 - Picture
+04 - Tamanho
+05 - Decimal
+06 - Validação
+07 - Usado - X3_USADO
+08 - Tipo
+09 - Consulta F3
+10 - Contexto (R,V) - X3_CONTEXT
+11 - ComboBox - X3_CBOX
+12 - Inicial. Padrao - X3_RELACAO
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function UAHEADER(cField)
+	Local cCombo := GetSx3Cache(cField,"X3_CBOX")
+	if SubStr(cCombo,1,1)=="#"
+		cCombo := &(SubStr(cCombo,2))
+	endif
+Return { FWX3Titulo(cField), GetSx3Cache(cField,"X3_CAMPO"), GetSx3Cache(cField,"X3_PICTURE"), GetSx3Cache(cField,"X3_TAMANHO"), GetSx3Cache(cField,"X3_DECIMAL"), GetSx3Cache(cField,"X3_VALID"),;
+		GetSx3Cache(cField,"X3_USADO"), GetSx3Cache(cField,"X3_TIPO"), GetSx3Cache(cField,"X3_F3"), GetSx3Cache(cField,"X3_CONTEXT"), cCombo, GetSx3Cache(cField,"X3_RELACAO") }
+
+
+/*/{Protheus.doc} User Function URETLGRL
+Retorna a imagem logomarca da empresa logada
+@type  Function
+@author pablo
+@since 14/07/2023
+@version 1
+/*/
+User Function URETLGRL()
+
+	//Caminho do logoppp.bmp
+	Local cStartDir := AllTrim(GetSrvProfString("StartPath","\"))
+	Local cStartLogo := " "
+
+	If File(cStartDir+"LGRL"+cEmpAnt+cFilAnt+".BMP")
+		cStartLogo := "LGRL"+cEmpAnt+cFilAnt+".BMP"
+	ElseIf File(cStartDir+"LGRL"+cEmpAnt+".BMP")
+		cStartLogo := "LGRL"+cEmpAnt+".BMP"
+	Endif
+
+Return cStartLogo
+
+/*/{Protheus.doc} uValDtCx
+Função que valida a data: 
+- data base referente a data do SO
+- data de abertura de caixa referente a data do SO
+ 
+@author pablo
+@since 28/03/2019
+@version 1.0
+@return lDate, logico
+
+@type function
+/*/
+User Function uValDtCx()
+
+Local aArea			:= GetArea()	//Guarda area
+Local aStation		:= {} 			//Informacoes da estacao  // [1]-CAIXA [2]-ESTACAO [3]-SERIE [4]-PDV [5]-LG_SERNFIS
+Local cChave		:= ""			//Chave de Pesquisa
+Local cNumMov		:= ""			//Numero do Movimento
+Local nIndice		:= 1	
+Local lDate			:= .T.
+
+If ( DATE() <> dDataBase )
+	lDate := .F.
+	MsgAlert("A data do sistema esta diferente da data do sistema operacional."+CRLF+CRLF;
+			+"DATA DO SISTEMA: " + DtoC(dDataBase)+CRLF;
+			+"DATA DO SISTEMA OPERACIONAL: " + DtoC(Date()),;
+			"Favor efetuar o logoff do sistema e entrar novamente.",;
+			"Atenção")
+Endif
+
+If lDate
+	aStation := STBInfoEst(	1, .T. ) //Informacoes da estacao  // [1]-CAIXA [2]-ESTACAO [3]-SERIE [4]-PDV [5]-LG_SERNFIS
+	cNumMov	 := AllTrim(STDNumMov()) //Numero do Movimento
+	//STDConfCash -> STDUtMovAb
+	cChave 	:= STDUtMovAb(1,aStation[1],aStation[4],aStation[2],cNumMov,.T.) //Funcao para retornar a chave do primeiro movimento pend. fechamento encontrado no controle de movimento de abertura e fecha. de caixa.
+	nIndice := 3 //LW_FILIAL+LW_PDV+LW_OPERADO+DTOS(LW_DTABERT)+LW_ESTACAO+LW_NUMMOV
+	DbSelectArea("SLW")
+	DbSetOrder(nIndice) 
+	If !Empty(cChave) .and. SLW->(DbSeek( cChave )) .and. ( DATE() <> SLW->LW_DTABERT )
+		lDate := .F.
+		MsgAlert("A data de abertura de caixa esta diferente da data do sistema operacional."+CRLF+CRLF;
+				+"DATA DE ABERTURA DE CAIXA: " + DtoC(SLW->LW_DTABERT)+CRLF;
+				+"DATA DO SISTEMA OPERACIONAL: " + DtoC(Date()),;
+				"Favor realizar o fechamento e uma nova abertura de caixa.",;
+				"Atenção")
+	EndIf
+EndIf
+
+RestArea(aArea)
+
+Return lDate
+
+
+/*/{Protheus.doc} UQuebTxt
+Quebra texto
+@author thebr
+@since 30/11/2018
+@version 1.0
+@return Nil
+@param _cString, , descricao
+@param _nTam, , descricao
+@type function
+/*/
+User Function UQuebTxt(_cString,_nTam)
+
+	Local aTexto	:= {}
+	Local cAux      := ""
+	Local cString   := AllTrim(_cString)
+
+	Local nX        := 1
+	Local nY        := 1
+
+	If _nTam > Len(cString)
+		aAdd(aTexto,cString)
+	Else
+		While nX <= Len(cString)
+
+			cAux := SubStr(cString,nX,_nTam)
+
+			If Empty(cAux)
+				nX += _nTam
+			Else
+				If SubStr(cAux,Len(cAux),1) == " " .Or. nX + _nTam > Len(cString)
+					aAdd(aTexto,cAux)
+					nX += _nTam
+				Else
+					For nY := Len(cAux) To 1 Step -1
+						If SubStr(cAux,nY,1) == " "
+							aAdd(aTexto,SubStr(cAux,1,nY))
+							nX += nY
+							Exit
+						Endif
+					Next nY
+					If nY == 0
+						aAdd(aTexto,SubStr(cAux,1,Len(cAux)))
+						nX += Len(cAux)
+					EndIf
+				Endif
+			Endif
+		EndDo
+	Endif
+
+Return(aTexto)
+
+/*/{Protheus.doc} UPABASOR
+Ao abrir o PDV, será verificado se existe algum abasteciemnto preso "em orçamento" na central
+Ticket: POSTO-741 - Abastecimentos retornam pra tela - Sereia - 17/02/23
+
+@type function
+@author Pablo Nunes
+@since 25/04/2023
+@return variant, return_description
+/*/
+User Function UPABASOR()
+
+	Local aStation := STBInfoEst(1,.T.) //Informacoes da estacao  // [1]-CAIXA [2]-ESTACAO [3]-SERIE [4]-PDV [5]-LG_SERNFIS
+	Local lRet := .F.
+	Local aParam := {}
+	Local xRet := Nil
+	Local aAbast := {}
+	Local nX := 1 
+	Local lFindAb := .F.
+
+	aParam := {"U_UCABASOR"}
+	aParam := {"FindFunction",aParam}
+	xRet := Nil
+	If FWHostPing() .AND. STBRemoteExecute("_EXEC_CEN",aParam,,,@xRet) //verifica se a função existe na central
+		If ValType(xRet)=="L" .and. xRet
+			//verifico se tem abastecimentos com status de marcado
+			aParam := {aStation[4], 1}
+			aParam := {"U_UCABASOR",aParam}
+			xRet := Nil
+			If FWHostPing() .AND. STBRemoteExecute("_EXEC_CEN",aParam,,,@xRet) //faz o estorno do orçamentos na central para o PDV
+				If ValType(xRet)=="A" .AND. len(xRet)>0
+					lRet := .T.
+				EndIf
+			EndIf
+			
+			//caso tenha, verifico a situação se realmente está em orçamento ou não
+			if lRet
+				SL1->(DbSetOrder(1)) //L1_FILIAL+L1_NUM
+				SL2->(DbOrderNickName("SL2MIDCOD")) //L2_FILIAL+L2_MIDCOD
+				for nX := 1 to len(xRet)
+					lFindAb := .F.
+					if SL2->(DbSeek(xFilial("SL2")+Alltrim(xRet[nX])))
+						While SL2->(!Eof()) .AND. SL2->L2_FILIAL+SL2->L2_MIDCOD == xFilial("SL2")+Alltrim(xRet[nX])
+							if SL1->(DbSeek(xFilial("SL1")+SL2->L2_NUM)) .AND. SL1->L1_SITUA $ '00/TX'
+								if !HasSLICanc(SL1->L1_DOC, SL1->L1_SERIE, SL2->L2_PDV)
+									//irá gravar dados da venda no abast
+									aadd(aAbast, {Alltrim(xRet[nX]), SL2->L2_NUM/*cOrcamento*/, SL1->L1_PDV/*cNrPDV*/, .T./*lIntegra*/, SL1->L1_DOC/*cDoc*/, SL1->L1_SERIE/*cSerie*/ })
+									lFindAb := .T.
+									EXIT
+								endif
+							endif
+							SL2->(DbSkip())
+						enddo
+					endif
+					if !lFindAb //irá voltar para pendente
+						aadd(aAbast, {Alltrim(xRet[nX]), ""/*cOrcamento*/, ""/*cNrPDV*/, .T./*lIntegra*/, ""/*cDoc*/, ""/*cSerie*/ })
+					endif
+				next nX
+				//verifico se tem abastecimentos com status de marcado
+				aParam := {"", 2, aAbast}
+				aParam := {"U_UCABASOR",aParam}
+				xRet := Nil
+				If FWHostPing() .AND. STBRemoteExecute("_EXEC_CEN",aParam,,,@xRet) //faz o estorno do orçamentos na central para o PDV
+					If ValType(xRet)=="A" .AND. len(xRet)>0
+						lRet := .T.
+					EndIf
+				EndIf
+			endif
+		EndIf
+	EndIf
+
+Return lRet
+
+/*/{Protheus.doc} UCABASOR
+Função executada na central para ajustar os abastecimentos com status "O - EM ORÇAMENTO" de determinado PDV para ficarem pendentes novamente;
+
+@author Pablo Nunes
+@since 25/04/2023
+@param cCodPDV, character, Código do PDV
+@param nType, numreric, 1=pega lista dos abast.;2=grava novo status dos abast.
+@return lRet, logico
+/*/
+User Function UCABASOR(cCodPDV, nType, aAbast)
+
+	Local cQry := ""
+	Local nX 
+	Default aAbast := {}
+
+	if nType == 1
+
+		cQry := "SELECT MID_CODABA AS NUMABAST "+CRLF
+		cQry += " FROM " + RetSQLName("MID") + " MID "+CRLF
+		cQry += " WHERE MID_FILIAL = '" + xFilial("MID") + "' "+CRLF
+		cQry += " AND D_E_L_E_T_ = ' ' "+CRLF
+		cQry += " AND MID_NUMORC = 'O' "+CRLF //-- O => Abastecimentos selecionados para finalizacao da venda ("Em orçamento")
+		cQry += " AND (MID_PDV = '"+cCodPDV+"' OR MID_PDV = '') "+CRLF
+
+		LjGrvLog( "UCABASOR", "Type 1 - Parametros -> cQry: ", cQry )
+
+		If Select("QAUX") > 0
+			QAUX->(DbCloseArea())
+		EndIf
+
+		cQry := ChangeQuery(cQry)
+		TcQuery cQry New ALIAS "QAUX"
+
+		aAbast := {}
+
+		If QAUX->(!EOF())
+			While QAUX->(!EOF())
+				aadd(aAbast, QAUX->NUMABAST)
+				QAUX->(DbSkip())
+			EndDo
+		EndIf
+
+		QAUX->(DbCloseArea())
+
+	else
+		LjGrvLog( "UCABASOR", "Type 2 - Parametros -> aAbast: ", aAbast )
+
+		//gravação do status de cada abastecimento
+		for nX := 1 to len(aAbast)
+			//cCodigo, cOrcamento, cNrPDV, lIntegra, cDoc, cSerie, lInutiliza, cUserForc
+			StwFsChangeStatus(aAbast[nX][1], aAbast[nX][2], aAbast[nX][3], aAbast[nX][4], aAbast[nX][5], aAbast[nX][6], .F.,"") //faz o abastecimento ficar com status de "P-PENDENTE" novamente...
+		next nX
+
+	endif
+	
+Return aAbast
+
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} STMVLSEF (VldNFSefaz)
+Retorna o status das notas, conforme vetor encaminhado
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+User Function STMVLSEF(lConsTSS, aNotas)
+
+	Local cRetSFZ  := ""
+	Local aRet := {}, aInfMonNFe := {}
+	Local ix := 0
+
+	If Type("cIdEntNFe") == "U"
+		//-- Determina ID
+		cIdEntNFe	:= URetEntTss("55",.F.) //RetIdEnti()
+		cURLNFe		:= AllTrim( GetMV("MV_SPEDURL") )
+
+		cIdEntNFCe	:= URetEntTss("65",.F.) //StaticCall(LOJNFCE,LjNFCeIDEnt)
+		cURLNFCe	:= AllTrim( GetMV("MV_NFCEURL") )
+	EndIf
+
+	for ix:=1 to len(aNotas)
+
+		//-- Consulta no TSS
+		lNFe := aNotas[ix][03]
+		cModelo := "65"
+		If Len(aNotas[ix]) > 3
+			cModelo := aNotas[ix][04]
+		Else
+			cModelo := iif(lNFe,"55","65")
+		EndIf
+		if lConsTSS
+
+			//-- aNotas[01] Serie
+			//-- aNotas[02] Nr da NF a Consultar
+			aInfMonNFe := ProcMonitorDoc( iif(lNFe,cIdEntNFe,cIdEntNFCe),;
+				iif(lNFe,cURLNFe,cURLNFCe),;
+				{aNotas[ix][01],aNotas[ix][02],aNotas[ix][02]},;
+				1 /*nTpMonitor*/,;
+				cModelo,;
+				.F. /*lCte*/,;
+				@cRetSFZ)
+
+			if len(aInfMonNFe) == 0
+				////conout("STMonitor: Sem retorno no TSS Local " + iif(lNFe,cIdEntNFe,cIdEntNFCe) + "/" + aNotas[ix][01] + "/" + aNotas[ix][02] )
+
+			endif
+
+			if len(aInfMonNFe)>0
+				aadd(aRet, aClone(aInfMonNFe[len(aInfMonNFe)]))
+			endif
+
+			//-- Consulta na SEFAZ
+		else
+			//-- aNotas[01] = Chave NFe/NFCe
+			////conout("STMonitor: Consultando SEFAZ " + iif(lNFe,cIdEntNFe,cIdEntNFCe) + "/" + aNotas[ix][01] )
+			aInfMonNFe := ConsNFeSEFAZ(iif(lNFe,cIdEntNFe,cIdEntNFCe), iif(lNFe,cURLNFe,cURLNFCe), aNotas[ix][01] )
+
+			if len(aInfMonNFe)>0
+				aRet := aClone(aInfMonNFe)
+			else
+				////conout("STMonitor: Sem retorno no SEFAZ " + iif(lNFe,cIdEntNFe,cIdEntNFCe) + "/" + aNotas[ix][01] )
+			endif
+
+		endif
+
+	next ix
+
+Return aClone(aRet)
+
+//----------------------------------------------------------------
+/*/{Protheus.doc} URetEntTss
+Retorna o Codigo da Entidade.
+@param	 cModelo 	Modelo do Documento Fiscal
+@return	 cIDENT		Codigo da Entidade que sera retornado
+@author  Varejo
+@version P11.8
+@since   19/04/2016
+/*/
+//------------------------------------------------------------------
+Static Function URetEntTss(cModelo, lAviso)
+
+	Local cIDENT	:= ""							// Codigo da Entidade que sera retornado
+	Local cURL   	:= ""							// URL de conexão com o TSS
+	Local cErro		:= ""							// mensagem de erro do WS
+	Local nPos		:= 0
+	Local lRetWS	:= .T.							// verifica se o metodo do WS foi executado com sucesso
+	Local lTentar	:= .T.
+	Local lUsaGesEmp:= IIF( FindFunction("FWFilialName") .AND. FindFunction("FWSizeFilial") .AND. FWSizeFilial() > 2, .T., .F. )
+	Local lEnvCodEmp:= GetNewPar("MV_ENVCDGE",.F.)
+	Local aEndereco	:= {}							// array com Logradouro[C], Numero[N], Numero[C] e Complemento[C]
+	Local aTelefone := {}							// array com DDI[N], DDD[N] e Telefone[N]
+	Local aIDEnt    := {}
+	Local cFax		:= ""
+	Local cNomeFant	:= ""
+	Local oWS										// Objeto WS
+
+	Default cModelo	:= "65"	//NFC-e
+	Default lAviso	:= .T.
+
+	LjGrvLog ("", "Modelo do Documento"		, cModelo)
+	LjGrvLog ("", "Grupo Empresa SM0"		, SM0->M0_CODIGO)
+	LjGrvLog( "", "Filial SM0"				, SM0->M0_CODFIL)
+	LjGrvLog( "", "Grupo Empresa cEmpAnt"	, cEmpAnt)
+	LjGrvLog( "", "Filial cFilAnt"			, cFilAnt)
+
+	If SM0->M0_CODFIL <> CFILANT
+		LjGrvLog( "LOJNFCE", "SM0 NÃO posicionada conforme CFILANT", SM0->M0_CODFIL )
+
+		If !SM0->( DbSeek(CEMPANT + CFILANT) )
+			LjGrvLog( "LOJNFCE", "NÃO foi possível posicionar SM0 conforme CFILANT", CFILANT)
+		EndIf
+	EndIf
+
+//
+// verificamos se o IDENT já foi obtido
+//
+	nPos := Ascan( aIDEnt, {|x| x[1] == cModelo} )
+
+// Se não achou o modelo de documento no array, precisamos obter sua entidade no TSS
+	If nPos == 0
+
+		// tratamento dos parametros do metodo do WS
+		If FindFunction("LjFiGetEnd")
+			aEndereco := LjFiGetEnd(SM0->M0_ENDENT, Nil, .T.)	//LOJXFUNB.PRW
+			aTelefone := LjFiGetTel(SM0->M0_TEL)
+			cFax	  := LjFiGetTel(SM0->M0_FAX)[3]
+		Else
+			aEndereco := FisGetEnd(SM0->M0_ENDENT) 				//MATA950.PRW
+			aTelefone := FisGetTel(SM0->M0_TEL)
+			cFax	  := FisGetTel(SM0->M0_FAX)[3]
+		EndIf
+
+		If cModelo == "65"
+			cURL := SuperGetMV("MV_NFCEURL",,"")
+			cNomeFant := Alltrim(SM0->M0_NOME)
+		Else
+			cURL := SuperGetMV("MV_SPEDURL",,"")
+			//futuramente, verificar o impacto de passar essa mesma validação para NFC-e
+			If lUsaGesEmp
+				cNomeFant := FWFilialName()
+			Else
+				cNomeFant := Alltrim(SM0->M0_NOME)
+			EndIf
+		EndIf
+
+		//
+		//instancia o Web Services
+		//
+		oWS := WsSPEDAdm():New()
+
+		oWS:_URL 					:= AllTrim(cURL)+"/SPEDADM.apw"
+		oWS:cUSERTOKEN				:= "TOTVS"
+
+		oWS:oWSEMPRESA:cCNPJ        := IIF(SM0->M0_TPINSC==2 .Or. Empty(SM0->M0_TPINSC),SM0->M0_CGC,"")
+		oWS:oWSEMPRESA:cCPF         := IIF(SM0->M0_TPINSC==3,SM0->M0_CGC,"")
+		oWS:oWSEMPRESA:cIE          := SM0->M0_INSC
+		oWS:oWSEMPRESA:cIM          := SM0->M0_INSCM
+		oWS:oWSEMPRESA:cNOME        := SM0->M0_NOMECOM
+		oWS:oWSEMPRESA:cFANTASIA    := cNomeFant
+		oWS:oWSEMPRESA:cENDERECO    := aEndereco[1]
+		oWS:oWSEMPRESA:cNUM         := aEndereco[3]
+		oWS:oWSEMPRESA:cCOMPL       := aEndereco[4]
+		oWS:oWSEMPRESA:cUF          := SM0->M0_ESTENT
+		oWS:oWSEMPRESA:cCEP         := SM0->M0_CEPENT
+		oWS:oWSEMPRESA:cCOD_MUN     := SM0->M0_CODMUN
+		oWS:oWSEMPRESA:cCOD_PAIS    := "1058"
+		oWS:oWSEMPRESA:cBAIRRO      := SM0->M0_BAIRENT
+		oWS:oWSEMPRESA:cMUN         := SM0->M0_CIDENT
+		oWS:oWSEMPRESA:cCEP_CP      := Nil
+		oWS:oWSEMPRESA:cCP          := Nil
+		oWS:oWSEMPRESA:cDDD         := Str(aTelefone[2],3)
+		oWS:oWSEMPRESA:cFONE        := AllTrim( Str(aTelefone[3],15) )
+		oWS:oWSEMPRESA:cFAX         := AllTrim( Str(cFax,15) )
+		oWS:oWSEMPRESA:cEMAIL       := UsrRetMail(RetCodUsr())
+		oWS:oWSEMPRESA:cNIRE        := SM0->M0_NIRE
+		oWS:oWSEMPRESA:dDTRE        := SM0->M0_DTRE
+		oWS:oWSEMPRESA:cNIT         := IIF(SM0->M0_TPINSC==1,SM0->M0_CGC,"")
+		oWS:oWSEMPRESA:cINDSITESP   := ""
+		oWS:oWSEMPRESA:cID_MATRIZ   := ""
+		//exclusivo para NF-e
+		If cModelo == "55" .AND. lUsaGesEmp .AND. lEnvCodEmp
+			oWS:oWSEMPRESA:CIDEMPRESA:= FwGrpCompany()+FwCodFil()
+		EndIf
+		oWS:oWSOUTRASINSCRICOES:oWSInscricao := SPEDADM_ARRAYOFSPED_GENERICSTRUCT():New()
+
+		LjGrvLog("","Objeto oWS",oWS)
+
+		//
+		//tratamento do retorno do Web Services
+		//
+		While lTentar
+
+			lRetWS := oWs:ADMEMPRESAS()
+
+			//tratamento do retorno do WS
+			If ValType(lRetWS) == "U"
+				lRetWS := .F.
+			EndIf
+
+			If lRetWS
+				Aadd( aIDEnt, {cModelo, oWS:cADMEMPRESASRESULT} )
+				lTentar := .F.	//para sair do While
+			Else
+				//tratamento para obter o SOAP Fault do Web Services
+				If Empty( GetWscError(3) )
+					cErro := GetWscError(1)
+				Else
+					cErro := GetWscError(3)
+				EndIf
+
+				//se houver interface de usuario, pergunta ao usuario se ele quer tentar novamente
+				If !IsBlind()
+					If lAviso
+						//"NFC-e: Não foi possível transmitir NFC-e (Capturar Código Entidade)" ## //"SIM" ## //NÃO ## //"Deseja tentar novamente?"
+						If Aviso("Nao foi possível obter o código da Entidade", cErro, {"SIM","NÃO"}, 3, "Deseja tentar novamente?") == 2
+							lTentar := .F.	//usuário escolheu não tentar novamente
+						EndIf
+					EndIf
+				Else
+					lTentar := .F.
+					//conout( "Nao foi possivel obter o código da Entidade", cErro)	//"NFC-e: Não foi possível transmitir NFC-e (Capturar Código Entidade)"
+					Help( ,, "NFCETSS",, "Nao foi possivel obter o código da Entidade" + cErro, 1, 0 )
+				EndIf
+			EndIf
+		EndDo
+
+	EndIf
+
+//
+// Obtemos o codigo da entidade (SPED001.IDENT) de acordo com o modelo de documento (55 NF-e ou 65 NFC-e)
+//
+	If lRetWS
+		// se acabou de obter o IDENT, procuramos sua posição no array estatico
+		If nPos == 0
+			nPos := Ascan( aIDEnt, {|x| x[1] == cModelo} )
+			LjGrvLog("","aIDEnt (Entidades Carregadas)", aIDEnt)
+		EndIf
+
+		If nPos > 0
+			cIDENT := aIDEnt[nPos][2]
+		EndIf
+	EndIf
+
+	LjGrvLog("","Entidade Retornada", cIDENT)
+
+Return cIDENT
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} ConsNFeSEFAZ
+Consulta na SEFAZ
+@author  author
+@since   date
+@version version
+/*/
+//-------------------------------------------------------------------
+Static Function ConsNFeSEFAZ(cIdEnt, cUrl, cChave)
+	Local oWS := {}, aDados := {"","","","","",""}
+
+	oWs:= WsNFeSBra():New()
+	oWs:cUserToken	:= "TOTVS"
+	oWs:cID_ENT		:= cIdEnt
+	oWs:cCHVNFE		:= cChave
+	oWs:_URL        := AllTrim(cURL)+"/NFeSBRA.apw"
+
+	if !oWs:ConsultaChaveNFE()
+		Return aDados
+	endif
+
+	if !Empty(oWs:oWSCONSULTACHAVENFERESULT:cVERSAO)
+		aDados[01] := oWs:oWSCONSULTACHAVENFERESULT:cVERSAO
+	endif
+
+	aDados[02] := IIf(oWs:oWSCONSULTACHAVENFERESULT:nAMBIENTE==1,"1-Produção","2-Homologação")
+	aDados[03] := oWs:oWSCONSULTACHAVENFERESULT:cCODRETNFE
+	aDados[04] := oWs:oWSCONSULTACHAVENFERESULT:cMSGRETNFE
+
+	if !Empty(oWs:oWSCONSULTACHAVENFERESULT:cPROTOCOLO)
+		aDados[05] := oWs:oWSCONSULTACHAVENFERESULT:cPROTOCOLO
+	endif
+
+	if !Empty(oWs:oWSCONSULTACHAVENFERESULT:cDIGVAL)
+		aDados[06] := oWs:oWSCONSULTACHAVENFERESULT:cDIGVAL
+	endif
+
+Return aDados
